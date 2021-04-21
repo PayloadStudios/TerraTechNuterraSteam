@@ -87,49 +87,49 @@ namespace Nuterra.BlockInjector
             return this;
         }
 
-        static string TrimForSafeSearch(string Value) => Value.Replace("(", "").Replace(")", "").Replace("_", "").Replace(" ", "").ToLower();
+		//static string TrimForSafeSearch(string Value) => Value.Replace("(", "").Replace(")", "").Replace("_", "").Replace(" ", "").ToLower();
 
-        private static Dictionary<string, GameObject> _gameBlocksNameDict;
-        private static Dictionary<int, GameObject> _gameBlocksIDDict;
-        public static bool GameBlocksByName(string ReferenceName, out GameObject Block)
-        {
-            if (_gameBlocksNameDict == null)
-            {
-                PopulateRefDictionaries();
-            }
-            return _gameBlocksNameDict.TryGetValue(TrimForSafeSearch(ReferenceName), out Block);
-        }
-        public static bool GameBlocksByID(int ReferenceID, out GameObject Block)
-        {
-            if (_gameBlocksIDDict == null)
-            {
-                PopulateRefDictionaries();
-            }
-            return _gameBlocksIDDict.TryGetValue(ReferenceID, out Block);
-        }
+		//private static Dictionary<string, GameObject> _gameBlocksNameDict;
+        //private static Dictionary<int, GameObject> _gameBlocksIDDict;
+        //public static bool GameBlocksByName(string ReferenceName, out GameObject Block)
+        //{
+        //    if (_gameBlocksNameDict == null)
+        //    {
+        //        PopulateRefDictionaries();
+        //    }
+        //    return _gameBlocksNameDict.TryGetValue(TrimForSafeSearch(ReferenceName), out Block);
+        //}
+        //public static bool GameBlocksByID(int ReferenceID, out GameObject Block)
+        //{
+        //    if (_gameBlocksIDDict == null)
+        //    {
+        //        PopulateRefDictionaries();
+        //    }
+        //    return _gameBlocksIDDict.TryGetValue(ReferenceID, out Block);
+        //}
 
-        private static void PopulateRefDictionaries()
-        {
-            _gameBlocksIDDict = new Dictionary<int, GameObject>();
-            _gameBlocksNameDict = new Dictionary<string, GameObject>();
-            var gos = Resources.FindObjectsOfTypeAll<GameObject>();
-            foreach (var go in gos)
-            {
-                try
-                {
-                    if (go.GetComponent<TankBlock>())
-                    {
-                        _gameBlocksNameDict.Add(TrimForSafeSearch(go.name), go);
-                        Visible v = go.GetComponent<Visible>();
-                        if (v != null)
-                        {
-                            _gameBlocksIDDict.Add(v.ItemType, go);
-                        }
-                    }
-                }
-                catch { /*fail silently*/ }
-            }
-        }
+        //private static void PopulateRefDictionaries()
+        //{
+        //    _gameBlocksIDDict = new Dictionary<int, GameObject>();
+        //    _gameBlocksNameDict = new Dictionary<string, GameObject>();
+        //    var gos = Resources.FindObjectsOfTypeAll<GameObject>();
+        //    foreach (var go in gos)
+        //    {
+        //        try
+        //        {
+        //            if (go.GetComponent<TankBlock>())
+        //            {
+        //                _gameBlocksNameDict.Add(TrimForSafeSearch(go.name), go);
+        //                Visible v = go.GetComponent<Visible>();
+        //                if (v != null)
+        //                {
+        //                    _gameBlocksIDDict.Add(v.ItemType, go);
+        //                }
+        //            }
+        //        }
+        //        catch { /*fail silently*/ }
+        //    }
+        //}
 
         internal void CreateFromRes(int PrefabID, bool RemoveRenderers)
         {
@@ -709,123 +709,123 @@ namespace Nuterra.BlockInjector
             return this;
         }
 
-        public BlockPrefabBuilder SetMass(float mass)
-        {
-            ThrowIfFinished();
-            if (mass <= 0f) throw new ArgumentOutOfRangeException(nameof(mass), "Cannot be lower or equal to zero");
-            TankBlock.m_DefaultMass = mass;
-            return this;
-        }
+        //public BlockPrefabBuilder SetMass(float mass)
+        //{
+        //    ThrowIfFinished();
+        //    if (mass <= 0f) throw new ArgumentOutOfRangeException(nameof(mass), "Cannot be lower or equal to zero");
+        //    TankBlock.m_DefaultMass = mass;
+        //    return this;
+        //}
+		//
+        //public BlockPrefabBuilder SetCenterOfMass(Vector3 CenterOfMass)
+        //{
+        //    ThrowIfFinished();
+        //    Transform transform = Prefab.transform.Find("CentreOfMass");
+        //    if (transform == null)
+        //    {
+        //        transform = new GameObject("CentreOfMass").transform;
+        //        transform.parent = Prefab.transform;
+        //    }
+        //    transform.localPosition = CenterOfMass;
+        //    for (int i = 0; i < Prefab.transform.childCount; i++)
+        //    {
+        //        transform = Prefab.transform.GetChild(i);
+        //        if (transform.name.Length < 5 && transform.name.EndsWith("col")) // "[a-z]col"
+        //            transform.localPosition = CenterOfMass;
+        //    }
+        //    _mcb.HasInjectedCenterOfMass = true;
+        //    _mcb.InjectedCenterOfMass = CenterOfMass;
+        //    return this;
+        //}
 
-        public BlockPrefabBuilder SetCenterOfMass(Vector3 CenterOfMass)
-        {
-            ThrowIfFinished();
-            Transform transform = Prefab.transform.Find("CentreOfMass");
-            if (transform == null)
-            {
-                transform = new GameObject("CentreOfMass").transform;
-                transform.parent = Prefab.transform;
-            }
-            transform.localPosition = CenterOfMass;
-            for (int i = 0; i < Prefab.transform.childCount; i++)
-            {
-                transform = Prefab.transform.GetChild(i);
-                if (transform.name.Length < 5 && transform.name.EndsWith("col")) // "[a-z]col"
-                    transform.localPosition = CenterOfMass;
-            }
-            _mcb.HasInjectedCenterOfMass = true;
-            _mcb.InjectedCenterOfMass = CenterOfMass;
-            return this;
-        }
+        //public BlockPrefabBuilder SetModel(Mesh Mesh, bool CreateBoxCollider, Material Material = null)
+        //{
+        //    return SetModel(Mesh, CreateBoxCollider, Material, new PhysicMaterial());
+        //}
+        //
+        //public BlockPrefabBuilder SetModel(Mesh Mesh, bool CreateBoxCollider, Material Material = null, PhysicMaterial PhysicMaterial = null)
+        //{
+        //    ThrowIfFinished();
+        //    GameObject model = new GameObject("m_MeshRenderer");
+        //    if (Mesh != null)
+        //    {
+        //        model.AddComponent<MeshFilter>().sharedMesh = Mesh;
+        //        model.AddComponent<MeshRenderer>().material = Material ?? GameObjectJSON.MaterialFromShader(Color.white);
+        //    }
+        //    if (CreateBoxCollider)
+        //    {
+        //        var bc = model.AddComponent<BoxCollider>();
+        //        if (Mesh != null)
+        //        {
+        //            Mesh.RecalculateBounds();
+        //            bc.size = Mesh.bounds.size - Vector3.one * 0.2f;
+        //            bc.center = Mesh.bounds.center;
+        //        }
+        //        bc.sharedMaterial = PhysicMaterial;
+        //    }
+        //    SetModel(model);
+        //    return this;
+        //}
+		//
+        //public BlockPrefabBuilder SetModel(Mesh Mesh, Mesh ColliderMesh = null, bool ConvexCollider = true, Material Material = null)
+        //{
+        //    return SetModel(Mesh, ColliderMesh, ConvexCollider, Material, new PhysicMaterial());
+        //}
+		//
+        //public BlockPrefabBuilder SetModel(Mesh Mesh, Mesh ColliderMesh = null, bool ConvexCollider = true, Material Material = null, PhysicMaterial PhysicMaterial = null)
+        //{
+        //    ThrowIfFinished();
+        //    GameObject model = new GameObject("m_MeshRenderer");
+        //    if (Mesh != null)
+        //    {
+        //        model.AddComponent<MeshFilter>().sharedMesh = Mesh;
+        //        model.AddComponent<MeshRenderer>().sharedMaterial = Material ?? GameObjectJSON.MaterialFromShader();
+        //    }
+        //    if (ColliderMesh != null)
+        //    {
+        //        var mc = model.AddComponent<MeshCollider>();
+        //        mc.convex = ConvexCollider;
+        //        mc.sharedMesh = ColliderMesh;
+        //        mc.sharedMaterial = PhysicMaterial;
+        //    }
+        //    SetModel(model);
+        //    return this;
+        //}
+		//
+        //public BlockPrefabBuilder SetModel(GameObject renderObject, bool MakeCopy = false)
+        //{
+        //    ThrowIfFinished();
+        //    GameObject _renderObject;
+        //    if (MakeCopy)
+        //        _renderObject = GameObject.Instantiate(renderObject);
+        //    else
+        //        _renderObject = renderObject;
+        //    _renderObject.transform.parent = _customBlock.Prefab.transform;
+        //    _renderObject.transform.localPosition = Vector3.zero;
+        //    _renderObject.transform.localRotation = Quaternion.identity;
+        //    _renderObject.layer = Globals.inst.layerTank;
+		//
+        //    //foreach (GameObject child in _renderObject.EnumerateHierarchy(false, false))
+        //    //{
+        //    //    child.layer = _renderObject.layer;
+        //    //}
+		//
+        //    return this;
+        //}
 
-        public BlockPrefabBuilder SetModel(Mesh Mesh, bool CreateBoxCollider, Material Material = null)
-        {
-            return SetModel(Mesh, CreateBoxCollider, Material, new PhysicMaterial());
-        }
-        
-        public BlockPrefabBuilder SetModel(Mesh Mesh, bool CreateBoxCollider, Material Material = null, PhysicMaterial PhysicMaterial = null)
-        {
-            ThrowIfFinished();
-            GameObject model = new GameObject("m_MeshRenderer");
-            if (Mesh != null)
-            {
-                model.AddComponent<MeshFilter>().sharedMesh = Mesh;
-                model.AddComponent<MeshRenderer>().material = Material ?? GameObjectJSON.MaterialFromShader(Color.white);
-            }
-            if (CreateBoxCollider)
-            {
-                var bc = model.AddComponent<BoxCollider>();
-                if (Mesh != null)
-                {
-                    Mesh.RecalculateBounds();
-                    bc.size = Mesh.bounds.size - Vector3.one * 0.2f;
-                    bc.center = Mesh.bounds.center;
-                }
-                bc.sharedMaterial = PhysicMaterial;
-            }
-            SetModel(model);
-            return this;
-        }
-
-        public BlockPrefabBuilder SetModel(Mesh Mesh, Mesh ColliderMesh = null, bool ConvexCollider = true, Material Material = null)
-        {
-            return SetModel(Mesh, ColliderMesh, ConvexCollider, Material, new PhysicMaterial());
-        }
-
-        public BlockPrefabBuilder SetModel(Mesh Mesh, Mesh ColliderMesh = null, bool ConvexCollider = true, Material Material = null, PhysicMaterial PhysicMaterial = null)
-        {
-            ThrowIfFinished();
-            GameObject model = new GameObject("m_MeshRenderer");
-            if (Mesh != null)
-            {
-                model.AddComponent<MeshFilter>().sharedMesh = Mesh;
-                model.AddComponent<MeshRenderer>().sharedMaterial = Material ?? GameObjectJSON.MaterialFromShader();
-            }
-            if (ColliderMesh != null)
-            {
-                var mc = model.AddComponent<MeshCollider>();
-                mc.convex = ConvexCollider;
-                mc.sharedMesh = ColliderMesh;
-                mc.sharedMaterial = PhysicMaterial;
-            }
-            SetModel(model);
-            return this;
-        }
-
-        public BlockPrefabBuilder SetModel(GameObject renderObject, bool MakeCopy = false)
-        {
-            ThrowIfFinished();
-            GameObject _renderObject;
-            if (MakeCopy)
-                _renderObject = GameObject.Instantiate(renderObject);
-            else
-                _renderObject = renderObject;
-            _renderObject.transform.parent = _customBlock.Prefab.transform;
-            _renderObject.transform.localPosition = Vector3.zero;
-            _renderObject.transform.localRotation = Quaternion.identity;
-            _renderObject.layer = Globals.inst.layerTank;
-
-            //foreach (GameObject child in _renderObject.EnumerateHierarchy(false, false))
-            //{
-            //    child.layer = _renderObject.layer;
-            //}
-
-            return this;
-        }
-
-        public BlockPrefabBuilder SetIcon(Texture2D displaySprite)
-        {
-            ThrowIfFinished();
-            _customBlock.DisplaySprite = GameObjectJSON.SpriteFromImage(displaySprite);
-            return this;
-        }
-
-        public BlockPrefabBuilder SetIcon(Sprite displaySprite)
-        {
-            ThrowIfFinished();
-            _customBlock.DisplaySprite = displaySprite;
-            return this;
-        }
+       //public BlockPrefabBuilder SetIcon(Texture2D displaySprite)
+       //{
+       //    ThrowIfFinished();
+       //    _customBlock.DisplaySprite = GameObjectJSON.SpriteFromImage(displaySprite);
+       //    return this;
+       //}
+	   //
+       //public BlockPrefabBuilder SetIcon(Sprite displaySprite)
+       //{
+       //    ThrowIfFinished();
+       //    _customBlock.DisplaySprite = displaySprite;
+       //    return this;
+       //}
 
         public BlockPrefabBuilder AddComponent<TBehaviour>(Action<TBehaviour> preparer) where TBehaviour : MonoBehaviour
         {
@@ -855,25 +855,25 @@ namespace Nuterra.BlockInjector
             }
         }
 
-        public BlockPrefabBuilder SetDeathExplosionReference(int ReferenceID)
-        {
-            ThrowIfFinished();
-            if (GameBlocksByID(ReferenceID, out GameObject refBlock))
-                _moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
-            else
-                Console.WriteLine($"Cound not find block '{ReferenceID}' for explosion effect");
-            return this;
-        }
-
-        public BlockPrefabBuilder SetDeathExplosionReference(string ReferenceName)
-        {
-            ThrowIfFinished();
-            if (GameBlocksByName(ReferenceName, out GameObject refBlock))
-                _moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
-            else
-                Console.WriteLine($"Cound not find block '{ReferenceName}' for explosion effect");
-            return this;
-        }
+        //public BlockPrefabBuilder SetDeathExplosionReference(int ReferenceID)
+        //{
+        //    ThrowIfFinished();
+        //    if (GameBlocksByID(ReferenceID, out GameObject refBlock))
+        //        _moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
+        //    else
+        //        Console.WriteLine($"Cound not find block '{ReferenceID}' for explosion effect");
+        //    return this;
+        //}
+		//
+        //public BlockPrefabBuilder SetDeathExplosionReference(string ReferenceName)
+        //{
+        //    ThrowIfFinished();
+        //    if (GameBlocksByName(ReferenceName, out GameObject refBlock))
+        //        _moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
+        //    else
+        //        Console.WriteLine($"Cound not find block '{ReferenceName}' for explosion effect");
+        //    return this;
+        //}
 
         CustomRecipe.RecipeInput[] _recipeQueue;
         string _recipeTable;

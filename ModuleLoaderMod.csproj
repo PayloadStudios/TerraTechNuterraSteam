@@ -95,34 +95,35 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BlockExamples.cs" />
-    <Compile Include="BlockLoader.cs" />
-    <Compile Include="BlockPrefabBuilder.cs" />
-    <Compile Include="CustomBlock.cs" />
-    <Compile Include="CustomCorporation.cs" />
-    <Compile Include="CustomModules.cs" />
-    <Compile Include="CustomModulesConsumeToShell.cs" />
-    <Compile Include="CustomRecipe.cs" />
-    <Compile Include="CustomTechComponents.cs" />
-    <Compile Include="DirectoryBlockLoader.cs" />
-    <Compile Include="DirectoryCorpLoader.cs" />
-    <Compile Include="GameObjectExtensions.cs" />
-    <Compile Include="JsonToGameObject.cs" />
-    <Compile Include="ModuleFirstPersonView.cs" />
-    <Compile Include="NetCameras.cs" />
-    <Compile Include="NetHandler.cs" />
+    <Compile Include="NuterraSteam\TTBlockReferences.cs" />
+    <Compile Include="NuterraUnofficial\BlockExamples.cs" />
+    <Compile Include="NuterraUnofficial\BlockLoader.cs" />
+    <Compile Include="NuterraUnofficial\BlockPrefabBuilder.cs" />
+    <Compile Include="NuterraUnofficial\CustomBlock.cs" />
+    <Compile Include="NuterraUnofficial\CustomCorporation.cs" />
+    <Compile Include="NuterraUnofficial\CustomModules.cs" />
+    <Compile Include="NuterraUnofficial\CustomModulesConsumeToShell.cs" />
+    <Compile Include="NuterraUnofficial\CustomRecipe.cs" />
+    <Compile Include="NuterraUnofficial\CustomTechComponents.cs" />
+    <Compile Include="NuterraUnofficial\DirectoryBlockLoader.cs" />
+    <Compile Include="NuterraUnofficial\DirectoryCorpLoader.cs" />
+    <Compile Include="NuterraUnofficial\GameObjectExtensions.cs" />
+    <Compile Include="NuterraUnofficial\JsonToGameObject.cs" />
+    <Compile Include="NuterraUnofficial\ModuleFirstPersonView.cs" />
+    <Compile Include="NuterraUnofficial\NetCameras.cs" />
+    <Compile Include="NuterraUnofficial\NetHandler.cs" />
     <Compile Include="NuterraSteam\NuterraMod.cs" />
     <Compile Include="NuterraSteam\NuterraModuleLoader.cs" />
-    <Compile Include="ObjImporter.cs" />
+    <Compile Include="NuterraUnofficial\ObjImporter.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ReferenceFinder.cs" />
-    <Compile Include="ReflectionHelper.cs" />
-    <Compile Include="UnstableSupport_RemoveWhenStable.cs" />
+    <Compile Include="NuterraUnofficial\ReferenceFinder.cs" />
+    <Compile Include="NuterraUnofficial\ReflectionHelper.cs" />
+    <Compile Include="NuterraUnofficial\UnstableSupport_RemoveWhenStable.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">

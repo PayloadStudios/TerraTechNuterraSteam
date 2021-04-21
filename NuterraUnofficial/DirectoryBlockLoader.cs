@@ -416,18 +416,18 @@ namespace Nuterra.BlockInjector
                     //}
                 }
 
-				if (jBlock.DeathExplosionReference != null)
-                {
-                    L("Reference Death Explosion", l);
-                    string der = jBlock.DeathExplosionReference.ToString();
-                    if (!string.IsNullOrEmpty(der))
-                    {
-                        if (int.TryParse(der, out int derID))
-                            blockbuilder.SetDeathExplosionReference(derID);
-                        else
-                            blockbuilder.SetDeathExplosionReference(der);
-                    }
-                }
+				//if (jBlock.DeathExplosionReference != null)
+                //{
+                //    L("Reference Death Explosion", l);
+                //    string der = jBlock.DeathExplosionReference.ToString();
+                //    if (!string.IsNullOrEmpty(der))
+                //    {
+                //        if (int.TryParse(der, out int derID))
+                //            blockbuilder.SetDeathExplosionReference(derID);
+                //        else
+                //            blockbuilder.SetDeathExplosionReference(der);
+                //    }
+                //}
 
                 if (jBlock.EmissionMode != 0)
                 {
@@ -486,34 +486,34 @@ namespace Nuterra.BlockInjector
                 //    blockbuilder.SetHP(250);
                 //}
 
-                if (jBlock.DamageableType.HasValue)
-                {
-                    L("Set DamageableType", l);
-                    blockbuilder.SetDamageableType((ManDamage.DamageableType)jBlock.DamageableType.Value);
-                }
+               //if (jBlock.DamageableType.HasValue)
+               //{
+               //    L("Set DamageableType", l);
+               //    blockbuilder.SetDamageableType((ManDamage.DamageableType)jBlock.DamageableType.Value);
+               //}
 
-                if (jBlock.Fragility.HasValue)
-                {
-                    L("Set DetachFragility", l);
-                    blockbuilder.SetDetachFragility(jBlock.Fragility.Value);
-                }
+               //if (jBlock.Fragility.HasValue)
+               //{
+               //    L("Set DetachFragility", l);
+               //    blockbuilder.SetDetachFragility(jBlock.Fragility.Value);
+               //}
 
                 //L("Set Rarity", l);
                 //blockbuilder.SetRarity((BlockRarity)jBlock.Rarity);
 
-                if (!string.IsNullOrEmpty(jBlock.IconName))
-                {
-                    L("Set Icon", l);
-                    var Spr = GameObjectJSON.GetObjectFromUserResources<Sprite>(SpriteT, jBlock.IconName);
-                    if (Spr == null)
-                    {
-                        blockbuilder.SetIcon((Sprite)null);
-                    }
-                    else
-                    {
-                        blockbuilder.SetIcon(Spr);
-                    }
-                }
+                //if (!string.IsNullOrEmpty(jBlock.IconName))
+                //{
+                //    L("Set Icon", l);
+                //    var Spr = GameObjectJSON.GetObjectFromUserResources<Sprite>(SpriteT, jBlock.IconName);
+                //    if (Spr == null)
+                //    {
+                //        blockbuilder.SetIcon((Sprite)null);
+                //    }
+                //    else
+                //    {
+                //        blockbuilder.SetIcon(Spr);
+                //    }
+                //}
 
                 if(jBlock.DropFromCrates.HasValue)
                 {
@@ -573,21 +573,21 @@ namespace Nuterra.BlockInjector
                     }
                 }
 
-                L("Get Collision Material", l);
-                /*Local*/
-                PhysicMaterial localphysmat = new PhysicMaterial();
-                if (jBlock.Friction.HasValue)
-                {
-                    localphysmat.dynamicFriction = jBlock.Friction.Value;
-                }
-                if (jBlock.StaticFriction.HasValue)
-                {
-                    localphysmat.staticFriction = jBlock.StaticFriction.Value;
-                }
-                if (jBlock.Bounciness.HasValue)
-                {
-                    localphysmat.bounciness = jBlock.Bounciness.Value;
-                }
+                //L("Get Collision Material", l);
+                ///*Local*/
+                //PhysicMaterial localphysmat = new PhysicMaterial();
+                //if (jBlock.Friction.HasValue)
+                //{
+                //    localphysmat.dynamicFriction = jBlock.Friction.Value;
+                //}
+                //if (jBlock.StaticFriction.HasValue)
+                //{
+                //    localphysmat.staticFriction = jBlock.StaticFriction.Value;
+                //}
+                //if (jBlock.Bounciness.HasValue)
+                //{
+                //    localphysmat.bounciness = jBlock.Bounciness.Value;
+                //}
 
                 ////Get Mesh
                 //Mesh mesh = null;
@@ -598,27 +598,27 @@ namespace Nuterra.BlockInjector
                 //}
 
                 //Get Collider
-                Mesh colliderMesh = null;
-                if (!string.IsNullOrEmpty(jBlock.ColliderMeshName))
-                {
-                    L("Get Collider", l);
-                    colliderMesh = GameObjectJSON.GetObjectFromUserResources<Mesh>(MeshT, jBlock.ColliderMeshName);
-                }
-
-                //Set Mesh
-                if (colliderMesh == null)
-                {
-                    if (mesh != null)
-                    {
-                        L("Set Mesh" + (jBlock.SupressBoxColliderFallback ? "" : " and Auto Collider"), l);
-                        blockbuilder.SetModel(mesh, !jBlock.SupressBoxColliderFallback, localmat, localphysmat);
-                    }
-                }
-                else
-                {
-                    L("Set Mesh and Collider", l);
-                    blockbuilder.SetModel(mesh, colliderMesh, true, localmat, localphysmat);
-                }
+                //Mesh colliderMesh = null;
+                //if (!string.IsNullOrEmpty(jBlock.ColliderMeshName))
+                //{
+                //    L("Get Collider", l);
+                //    colliderMesh = GameObjectJSON.GetObjectFromUserResources<Mesh>(MeshT, jBlock.ColliderMeshName);
+                //}
+				//
+                ////Set Mesh
+                //if (colliderMesh == null)
+                //{
+                //    if (mesh != null)
+                //    {
+                //        L("Set Mesh" + (jBlock.SupressBoxColliderFallback ? "" : " and Auto Collider"), l);
+                //        blockbuilder.SetModel(mesh, !jBlock.SupressBoxColliderFallback, localmat, localphysmat);
+                //    }
+                //}
+                //else
+                //{
+                //    L("Set Mesh and Collider", l);
+                //    blockbuilder.SetModel(mesh, colliderMesh, true, localmat, localphysmat);
+                //}
 
                 if (jBlock.SubObjects != null && jBlock.SubObjects.Length != 0)
                 {
@@ -629,249 +629,249 @@ namespace Nuterra.BlockInjector
                     {
                         string LocalPath;
 
-                        L("-Get GameObject", l);
-                        Transform childT = string.IsNullOrEmpty(sub.SubOverrideName) ? null : (tr.RecursiveFindWithProperties(sub.SubOverrideName) as Component)?.transform;
-                        bool New = childT == null;
-                        GameObject childG = null;
-                        if (New)
-                        {
-                            string newGOName = (string.IsNullOrEmpty(sub.SubOverrideName) ? "SubObject_" + (tr.childCount + 1).ToString() : sub.SubOverrideName);
-                            L("-New GameObject " + newGOName, l);
-                            LocalPath = "/" + newGOName;
-                            childG = new GameObject(newGOName);
-                            childT = childG.transform;
-                            childT.parent = tr;
-                            childT.localPosition = Vector3.zero;
-                            childT.localRotation = Quaternion.identity;
-                            if (sub.Layer.HasValue)
-                            {
-                                childG.layer = sub.Layer.Value;
-                            }
-                            else
-                            {
-                                childG.layer = 8;//Globals.inst.layerTank;
-                            }
-                            New = true;
-                        }
-                        else
-                        {
-                            L("-Existing GameObject " + sub.SubOverrideName, l);
-                            childG = childT.gameObject;
-                            if (sub.Layer.HasValue)
-                            {
-                                childG.layer = sub.Layer.Value;
-                            }
-                        }
+                        //L("-Get GameObject", l);
+                        //Transform childT = string.IsNullOrEmpty(sub.SubOverrideName) ? null : (tr.RecursiveFindWithProperties(sub.SubOverrideName) as Component)?.transform;
+                        //bool New = childT == null;
+                        //GameObject childG = null;
+                        //if (New)
+                        //{
+                        //    string newGOName = (string.IsNullOrEmpty(sub.SubOverrideName) ? "SubObject_" + (tr.childCount + 1).ToString() : sub.SubOverrideName);
+                        //    L("-New GameObject " + newGOName, l);
+                        //    LocalPath = "/" + newGOName;
+                        //    childG = new GameObject(newGOName);
+                        //    childT = childG.transform;
+                        //    childT.parent = tr;
+                        //    childT.localPosition = Vector3.zero;
+                        //    childT.localRotation = Quaternion.identity;
+                        //    if (sub.Layer.HasValue)
+                        //    {
+                        //        childG.layer = sub.Layer.Value;
+                        //    }
+                        //    else
+                        //    {
+                        //        childG.layer = 8;//Globals.inst.layerTank;
+                        //    }
+                        //    New = true;
+                        //}
+                        //else
+                        //{
+                        //    L("-Existing GameObject " + sub.SubOverrideName, l);
+                        //    childG = childT.gameObject;
+                        //    if (sub.Layer.HasValue)
+                        //    {
+                        //        childG.layer = sub.Layer.Value;
+                        //    }
+                        //}
 
-                        if (sub.SubPosition.HasValue)
-                        {
-                            L("-Offset Position", l);
-                            childT.localPosition = sub.SubPosition.Value;
-                        }
-                        if (sub.SubRotation.HasValue)
-                        {
-                            L("-Offset Rotation", l);
-                            childT.localRotation = Quaternion.Euler(sub.SubRotation.Value);
-                        }
+                        //if (sub.SubPosition.HasValue)
+                        //{
+                        //    L("-Offset Position", l);
+                        //    childT.localPosition = sub.SubPosition.Value;
+                        //}
+                        //if (sub.SubRotation.HasValue)
+                        //{
+                        //    L("-Offset Rotation", l);
+                        //    childT.localRotation = Quaternion.Euler(sub.SubRotation.Value);
+                        //}
 
                         //-DestroyCollidersOnObj
-                        if (sub.DestroyExistingColliders)
-                        {
-                            L("-Destroy Colliders", l);
-                            foreach (var collider in childG.GetComponents<Collider>())
-                            {
-                                Component.DestroyImmediate(collider);
-                            }
-                        }
+                        //if (sub.DestroyExistingColliders)
+                        //{
+                        //    L("-Destroy Colliders", l);
+                        //    foreach (var collider in childG.GetComponents<Collider>())
+                        //    {
+                        //        Component.DestroyImmediate(collider);
+                        //    }
+                        //}
 
                         //-DestroyRendersOnObj
-                        if (sub.DestroyExistingRenderer)
-                        {
-                            L("-Destroy Renderers", l);
-                            foreach (var comp1 in childG.GetComponents<Renderer>())
-                            {
-                                Component.DestroyImmediate(comp1);
-                            }
-                            foreach (var comp2 in childG.GetComponents<MeshFilter>())
-                            {
-                                Component.DestroyImmediate(comp2);
-                            }
-                        }
+                        //if (sub.DestroyExistingRenderer)
+                        //{
+                        //    L("-Destroy Renderers", l);
+                        //    foreach (var comp1 in childG.GetComponents<Renderer>())
+                        //    {
+                        //        Component.DestroyImmediate(comp1);
+                        //    }
+                        //    foreach (var comp2 in childG.GetComponents<MeshFilter>())
+                        //    {
+                        //        Component.DestroyImmediate(comp2);
+                        //    }
+                        //}
 
                         //-Get Mesh
-                        Mesh submesh = null;
-                        if (!string.IsNullOrEmpty(sub.MeshName))
-                        {
-                            L("-Get Mesh", l);
-                            submesh = GameObjectJSON.GetObjectFromUserResources<Mesh>(MeshT, sub.MeshName);
-                        }
-
-                        //-Get Collider
-                        Mesh subcolliderMesh = null;
-                        if (!string.IsNullOrEmpty(sub.ColliderMeshName))
-                        {
-                            L("-Get Collider", l);
-                            subcolliderMesh = GameObjectJSON.GetObjectFromUserResources<Mesh>(MeshT, sub.ColliderMeshName);
-                        }
+                        //Mesh submesh = null;
+                        //if (!string.IsNullOrEmpty(sub.MeshName))
+                        //{
+                        //    L("-Get Mesh", l);
+                        //    submesh = GameObjectJSON.GetObjectFromUserResources<Mesh>(MeshT, sub.MeshName);
+                        //}
+						//
+                        ////-Get Collider
+                        //Mesh subcolliderMesh = null;
+                        //if (!string.IsNullOrEmpty(sub.ColliderMeshName))
+                        //{
+                        //    L("-Get Collider", l);
+                        //    subcolliderMesh = GameObjectJSON.GetObjectFromUserResources<Mesh>(MeshT, sub.ColliderMeshName);
+                        //}
 
                         //-Get Material
-                        Material mat = localmat;
+                       //Material mat = localmat;
+					   //
+                       //if (!New && !sub.DestroyExistingRenderer)
+                       //{
+                       //    var ren = childG.GetComponent<Renderer>();
+                       //    if (ren)
+                       //        mat = ren.sharedMaterial;
+                       //}
+					   //
+                       //bool smissingflag1 = string.IsNullOrWhiteSpace(sub.MeshTextureName),
+                       //    smissingflag2 = string.IsNullOrWhiteSpace(sub.MeshGlossTextureName),
+                       //    smissingflag3 = string.IsNullOrWhiteSpace(sub.MeshEmissionTextureName),
+                       //    smissingflags = smissingflag1 && smissingflag2 && smissingflag3;
+					   //
+                       //string SubDupeCheck = 
+                       //    "M:" + (sub.MeshMaterialName??jBlock.MeshMaterialName) + 
+                       //    ";A:" + sub.MeshTextureName + 
+                       //    ";G:" + sub.MeshGlossTextureName + 
+                       //    ";E:" + sub.MeshEmissionTextureName;
+					   //
+                       //if (!smissingflags && HashMAGE.TryGetValue(SubDupeCheck, out Material customMat))
+                       //{
+                       //    L("-Get Cached Material (" + SubDupeCheck + ")", l);
+                       //    mat = customMat;
+                       //}
+                       //else
+                       //{
+                       //    if (!string.IsNullOrEmpty(sub.MeshMaterialName))
+                       //    {
+                       //        L("-Get Material", l);
+                       //        string matName = sub.MeshMaterialName.Replace("Venture_", "VEN_")
+                       //                                             .Replace("GeoCorp_", "GC_");
+                       //        try
+                       //        {
+                       //            var mat2 = GameObjectJSON.GetObjectFromGameResources<Material>(MaterialT, matName);
+                       //            if (mat2 == null) Console.WriteLine(matName + " is not a valid Game Material!", l);
+                       //            else mat = mat2;
+                       //        }
+                       //        catch { Console.WriteLine(sub.MeshMaterialName + " is not a valid Game Material!"); }
+                       //    }
+					   //
+                       //    if (!smissingflags)
+                       //    {
+                       //        L("-Texture Material", l);
+                       //        mat = GameObjectJSON.SetTexturesToMaterial(true, mat,
+                       //            smissingflag1 ? null : GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, sub.MeshTextureName),
+                       //            smissingflag2 ? null : GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, sub.MeshGlossTextureName),
+                       //            smissingflag3 ? null : GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, sub.MeshEmissionTextureName));
+                       //        HashMAGE.Add(SubDupeCheck, mat);
+                       //    }
+                       //}
 
-                        if (!New && !sub.DestroyExistingRenderer)
-                        {
-                            var ren = childG.GetComponent<Renderer>();
-                            if (ren)
-                                mat = ren.sharedMaterial;
-                        }
-
-                        bool smissingflag1 = string.IsNullOrWhiteSpace(sub.MeshTextureName),
-                            smissingflag2 = string.IsNullOrWhiteSpace(sub.MeshGlossTextureName),
-                            smissingflag3 = string.IsNullOrWhiteSpace(sub.MeshEmissionTextureName),
-                            smissingflags = smissingflag1 && smissingflag2 && smissingflag3;
-
-                        string SubDupeCheck = 
-                            "M:" + (sub.MeshMaterialName??jBlock.MeshMaterialName) + 
-                            ";A:" + sub.MeshTextureName + 
-                            ";G:" + sub.MeshGlossTextureName + 
-                            ";E:" + sub.MeshEmissionTextureName;
-
-                        if (!smissingflags && HashMAGE.TryGetValue(SubDupeCheck, out Material customMat))
-                        {
-                            L("-Get Cached Material (" + SubDupeCheck + ")", l);
-                            mat = customMat;
-                        }
-                        else
-                        {
-                            if (!string.IsNullOrEmpty(sub.MeshMaterialName))
-                            {
-                                L("-Get Material", l);
-                                string matName = sub.MeshMaterialName.Replace("Venture_", "VEN_")
-                                                                     .Replace("GeoCorp_", "GC_");
-                                try
-                                {
-                                    var mat2 = GameObjectJSON.GetObjectFromGameResources<Material>(MaterialT, matName);
-                                    if (mat2 == null) Console.WriteLine(matName + " is not a valid Game Material!", l);
-                                    else mat = mat2;
-                                }
-                                catch { Console.WriteLine(sub.MeshMaterialName + " is not a valid Game Material!"); }
-                            }
-
-                            if (!smissingflags)
-                            {
-                                L("-Texture Material", l);
-                                mat = GameObjectJSON.SetTexturesToMaterial(true, mat,
-                                    smissingflag1 ? null : GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, sub.MeshTextureName),
-                                    smissingflag2 ? null : GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, sub.MeshGlossTextureName),
-                                    smissingflag3 ? null : GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, sub.MeshEmissionTextureName));
-                                HashMAGE.Add(SubDupeCheck, mat);
-                            }
-                        }
-
-                        PhysicMaterial physmat = localphysmat;
-                        if (sub.MakeBoxCollider || sub.MakeSphereCollider || !string.IsNullOrWhiteSpace(sub.ColliderMeshName))
-                        {
-                            L("-Get Collision Material", l);
-                            bool newphysmat = false;
-                            if (sub.Friction.HasValue && sub.Friction.Value != localphysmat.dynamicFriction)
-                            {
-                                if (!newphysmat) { physmat = CopyPhysicMaterial(localphysmat); newphysmat = true; }
-                                physmat.dynamicFriction = sub.Friction.Value;
-                            }
-                            if (sub.StaticFriction.HasValue && sub.StaticFriction.Value != localphysmat.staticFriction)
-                            {
-                                if (!newphysmat) { physmat = CopyPhysicMaterial(localphysmat); newphysmat = true; }
-                                physmat.staticFriction = sub.StaticFriction.Value;
-                            }
-                            if (sub.Bounciness.HasValue && sub.Bounciness.Value != localphysmat.bounciness)
-                            {
-                                if (!newphysmat) { physmat = CopyPhysicMaterial(localphysmat); newphysmat = true; }
-                                physmat.bounciness = sub.Bounciness.Value;
-                            }
-                        }
+                       // PhysicMaterial physmat = localphysmat;
+                       // if (sub.MakeBoxCollider || sub.MakeSphereCollider || !string.IsNullOrWhiteSpace(sub.ColliderMeshName))
+                       // {
+                       //     L("-Get Collision Material", l);
+                       //     bool newphysmat = false;
+                       //     if (sub.Friction.HasValue && sub.Friction.Value != localphysmat.dynamicFriction)
+                       //     {
+                       //         if (!newphysmat) { physmat = CopyPhysicMaterial(localphysmat); newphysmat = true; }
+                       //         physmat.dynamicFriction = sub.Friction.Value;
+                       //     }
+                       //     if (sub.StaticFriction.HasValue && sub.StaticFriction.Value != localphysmat.staticFriction)
+                       //     {
+                       //         if (!newphysmat) { physmat = CopyPhysicMaterial(localphysmat); newphysmat = true; }
+                       //         physmat.staticFriction = sub.StaticFriction.Value;
+                       //     }
+                       //     if (sub.Bounciness.HasValue && sub.Bounciness.Value != localphysmat.bounciness)
+                       //     {
+                       //         if (!newphysmat) { physmat = CopyPhysicMaterial(localphysmat); newphysmat = true; }
+                       //         physmat.bounciness = sub.Bounciness.Value;
+                       //     }
+                       // }
 
                         //-Apply
-                        if (submesh != null)
-                        {
-                            L("-Set Mesh", l);
-                            if (New) childG.AddComponent<MeshFilter>().sharedMesh = submesh;
-                            else childG.EnsureComponent<MeshFilter>().sharedMesh = submesh;
-                            childG.EnsureComponent<MeshRenderer>().sharedMaterial = mat;
-                        }
-                        else
-                        {
-                            var renderers = childG.GetComponents<Renderer>();
-                            if (renderers.Length != 0)
-                            {
-                                L("-Set Material", l);
-                                foreach (var renderer in renderers)
-                                {
-                                    renderer.sharedMaterial = mat;
-                                    if (renderer is ParticleSystemRenderer psrenderer)
-                                        psrenderer.trailMaterial = mat;
-                                }
-                                if (sub.ForceEmission)
-                                {
-                                    L("-Set Emission packet", l);
-                                    foreach (var renderer in renderers)
-                                    {
-                                        MaterialSwapper.SetMaterialPropertiesOnRenderer(renderer, ManTechMaterialSwap.MaterialColour.Normal, 1f, 0);
-                                    }
-                                }
-                            }
-                        }
+                        //if (submesh != null)
+                        //{
+                        //    L("-Set Mesh", l);
+                        //    if (New) childG.AddComponent<MeshFilter>().sharedMesh = submesh;
+                        //    else childG.EnsureComponent<MeshFilter>().sharedMesh = submesh;
+                        //    childG.EnsureComponent<MeshRenderer>().sharedMaterial = mat;
+                        //}
+                       //else
+                       //{
+                       //    var renderers = childG.GetComponents<Renderer>();
+                       //    if (renderers.Length != 0)
+                       //    {
+                       //        L("-Set Material", l);
+                       //        foreach (var renderer in renderers)
+                       //        {
+                       //            renderer.sharedMaterial = mat;
+                       //            if (renderer is ParticleSystemRenderer psrenderer)
+                       //                psrenderer.trailMaterial = mat;
+                       //        }
+                       //        if (sub.ForceEmission)
+                       //        {
+                       //            L("-Set Emission packet", l);
+                       //            foreach (var renderer in renderers)
+                       //            {
+                       //                MaterialSwapper.SetMaterialPropertiesOnRenderer(renderer, ManTechMaterialSwap.MaterialColour.Normal, 1f, 0);
+                       //            }
+                       //        }
+                       //    }
+                       //}
 
-                        if (subcolliderMesh != null)
-                        {
-                            L("-Set Collider Mesh", l);
-                            MeshCollider mc;
-                            if (New) mc = childG.AddComponent<MeshCollider>();
-                            else mc = childG.EnsureComponent<MeshCollider>();
-                            mc.convex = true;
-                            mc.sharedMesh = subcolliderMesh;
-                            mc.sharedMaterial = physmat;
-                        }
-                        if (sub.MakeBoxCollider)
-                        {
-                            if (submesh != null)
-                            {
-                                L("-Set Collider Box from Mesh", l);
-                                submesh.RecalculateBounds();
-                                var bc = childG.EnsureComponent<BoxCollider>();
-                                bc.size = submesh.bounds.size - Vector3.one * 0.2f;
-                                bc.center = submesh.bounds.center;
-                                bc.sharedMaterial = physmat;
-                            }
-                            else
-                            {
-                                L("-Set Collider Box", l);
-                                var bc = childG.EnsureComponent<BoxCollider>();
-                                bc.size = Vector3.one;
-                                bc.center = Vector3.zero;
-                                bc.sharedMaterial = physmat;
-                            }
-                        }
-                        if (sub.MakeSphereCollider)
-                        {
-                            L("-Set Collider Sphere", l);
-                            var bc = childG.EnsureComponent<SphereCollider>();
-                            bc.radius = 0.5f;
-                            bc.center = Vector3.zero;
-                            bc.sharedMaterial = physmat;
-                        }
+                        //if (subcolliderMesh != null)
+                        //{
+                        //    L("-Set Collider Mesh", l);
+                        //    MeshCollider mc;
+                        //    if (New) mc = childG.AddComponent<MeshCollider>();
+                        //    else mc = childG.EnsureComponent<MeshCollider>();
+                        //    mc.convex = true;
+                        //    mc.sharedMesh = subcolliderMesh;
+                        //    mc.sharedMaterial = physmat;
+                        //}
+                        //if (sub.MakeBoxCollider)
+                        //{
+                        //    if (submesh != null)
+                        //    {
+                        //        L("-Set Collider Box from Mesh", l);
+                        //        submesh.RecalculateBounds();
+                        //        var bc = childG.EnsureComponent<BoxCollider>();
+                        //        bc.size = submesh.bounds.size - Vector3.one * 0.2f;
+                        //        bc.center = submesh.bounds.center;
+                        //        bc.sharedMaterial = physmat;
+                        //    }
+                        //    else
+                        //    {
+                        //        L("-Set Collider Box", l);
+                        //        var bc = childG.EnsureComponent<BoxCollider>();
+                        //        bc.size = Vector3.one;
+                        //        bc.center = Vector3.zero;
+                        //        bc.sharedMaterial = physmat;
+                        //    }
+                        //}
+                        //if (sub.MakeSphereCollider)
+                        //{
+                        //    L("-Set Collider Sphere", l);
+                        //    var bc = childG.EnsureComponent<SphereCollider>();
+                        //    bc.radius = 0.5f;
+                        //    bc.center = Vector3.zero;
+                        //    bc.sharedMaterial = physmat;
+                        //}
                         //-Set Size
-                        if (sub.SubScale.HasValue && sub.SubScale != Vector3.zero)
-                        {
-                            L("-Set Size", l);
-                            childT.localScale = sub.SubScale.Value;
-                        }
+                        //if (sub.SubScale.HasValue && sub.SubScale != Vector3.zero)
+                        //{
+                        //    L("-Set Size", l);
+                        //    childT.localScale = sub.SubScale.Value;
+                        //}
                     }
                 }
 
-                L("Set Name", l);
-                blockbuilder.SetName(jBlock.Name);
-
-                L("Set Description", l);
-                blockbuilder.SetDescription(jBlock.Description);
+               // L("Set Name", l);
+               // blockbuilder.SetName(jBlock.Name);
+			   //
+               // L("Set Description", l);
+               // blockbuilder.SetDescription(jBlock.Description);
 
                 //Set Cells
                 if (jBlock.CellMap != null && jBlock.CellMap.Length != 0)
@@ -879,23 +879,23 @@ namespace Nuterra.BlockInjector
                     L("Set Cell Map", l);
                     blockbuilder.SetSizeFromStringMap(jBlock.CellMap);
                 }
-                else if (jBlock.Cells != null && jBlock.Cells.Length != 0)
-                {
-                    L("Set Cells Manual", l);
-                    blockbuilder.SetSizeManual(jBlock.Cells, true);
-                }
+                //else if (jBlock.Cells != null && jBlock.Cells.Length != 0)
+                //{
+                //    L("Set Cells Manual", l);
+                //    blockbuilder.SetSizeManual(jBlock.Cells, true);
+                //}
                 else if (jBlock.BlockExtents.HasValue)
                 {
                     L("Set Cells Extents", l);
                     blockbuilder.SetSize(jBlock.BlockExtents.Value, (jBlock.APsOnlyAtBottom ? BlockPrefabBuilder.AttachmentPoints.Bottom : BlockPrefabBuilder.AttachmentPoints.All));
                 }
 
-                //Set APs
-                if (jBlock.APs != null)
-                {
-                    L("Set APs", l);
-                    blockbuilder.SetAPsManual(jBlock.APs);
-                }
+                ////Set APs
+                //if (jBlock.APs != null)
+                //{
+                //    L("Set APs", l);
+                //    blockbuilder.SetAPsManual(jBlock.APs);
+                //}
 
                 if(!string.IsNullOrEmpty(jBlock.RotationGroup))
                 {
@@ -903,22 +903,22 @@ namespace Nuterra.BlockInjector
                 }
 
                 //Set Mass
-                L("Set Mass", l);
-                if (jBlock.Mass != 0f)
-                {
-                    blockbuilder.SetMass(jBlock.Mass);
-                }
-                else
-                {
-                    blockbuilder.SetMass(1f);
-                }
+                //L("Set Mass", l);
+                //if (jBlock.Mass != 0f)
+                //{
+                //    blockbuilder.SetMass(jBlock.Mass);
+                //}
+                //else
+                //{
+                //    blockbuilder.SetMass(1f);
+                //}
 
                 //Set Center of Mass
-                if (jBlock.CenterOfMass.HasValue)
-                {
-                    L("Set Center of Mass", l);
-                    blockbuilder.SetCenterOfMass(jBlock.CenterOfMass.Value);
-                }
+                //if (jBlock.CenterOfMass.HasValue)
+                //{
+                //    L("Set Center of Mass", l);
+                //    blockbuilder.SetCenterOfMass(jBlock.CenterOfMass.Value);
+                //}
 
                 //Recipe
                 /*Local*/int RecipePrice = 0;

@@ -10,6 +10,8 @@ namespace CustomModules
 {
     public class NuterraModuleLoader : JSONModuleLoader
 	{
+		private static Dictionary<string, Material> sMaterialCache = new Dictionary<string, Material>();
+
 		// This method should add a module to the TankBlock prefab
 		public override bool CreateModuleForBlock(int blockID, ModdedBlockDefinition def, TankBlock block, JToken jToken)
 		{
@@ -42,18 +44,11 @@ namespace CustomModules
 				def.m_Price = TryParseEnum(jData, "Price", def.m_Price);
 				// TODO: Recipe
 
-				// TODO: IconName - Do we override?
-				// TODO: MeshName - Do we override?
-				// TODO: ColliderMeshName
-				// TODO: SupressBoxColliderFallback
-				// TODO: Mass
-				// TODO: MeshMaterialName
-				// TODO: DamageableType
-				// TODO: Fragility
+
 				def.m_MaxHealth = TryParse(jData, "HP", def.m_MaxHealth);
 
 				// ------------------------------------------------------
-				// Reference - Copy a vanilla block
+				#region Reference - Copy a vanilla block
 				bool keepRenderers = TryParse(jData, "KeepRenderers", true);
 				bool keepReferenceRenderers = TryParse(jData, "KeepReferenceRenderers", true);
 				bool keepColliders = TryParse(jData, "KeepColliders", true);
@@ -63,9 +58,8 @@ namespace CustomModules
 					// This code block copies our chosen reference block
 					// TTQMM REF: BlockPrefabBuilder.Initialize
 
-					BlockTypes blockType = (BlockTypes)Enum.Parse(typeof(BlockTypes), jRef.ToString());
-
-					TankBlock original = ManSpawn.inst.GetBlockPrefab(blockType);
+					GameObject originalGameObject = TTBlockReferences.FindBlockByName(jRef.ToString());
+					TankBlock original = originalGameObject.GetComponent<TankBlock>();
 					TankBlock copy = UnityEngine.Object.Instantiate(original);
 					TankBlockTemplate fakeTemplate = copy.gameObject.AddComponent<TankBlockTemplate>();
 					// Cheeky hack to swap the prefab
@@ -114,8 +108,11 @@ namespace CustomModules
 					// Assign this back to block for further processing
 					block = copy;
 				}
+				#endregion
 				// ------------------------------------------------------
-				// Get some references set up for the next phase
+
+				// ------------------------------------------------------
+				// Get some references set up for the next phase, now our prefab is setup
 				Damageable damageable = GetOrAddComponent<Damageable>(block);
 				ModuleDamage moduleDamage = GetOrAddComponent<ModuleDamage>(block);
 				Visible visible = GetOrAddComponent<Visible>(block);
@@ -123,9 +120,25 @@ namespace CustomModules
 				transform.position = Vector3.zero;
 				transform.rotation = Quaternion.identity;
 				transform.localScale = Vector3.one;
-				// ------------------------------------------------------
-				// Apply tweaks
 
+				// ------------------------------------------------------
+				#region Additional References
+				if (jData.TryGetValue("DeathExplosionReference", out JToken jDeathRef) && jDeathRef.Type == JTokenType.String)
+				{
+					string deathExpRef = jDeathRef.ToString();
+					GameObject refBlock = TTBlockReferences.FindBlockFromString(deathExpRef);
+					if(refBlock != null)
+					{
+						moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
+					}
+				}
+
+
+				#endregion
+				// ------------------------------------------------------
+
+				// ------------------------------------------------------
+				#region Tweaks
 				// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
 				if(jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
 				{
@@ -141,6 +154,7 @@ namespace CustomModules
 							}
 					block.filledCells = filledCells.ToArray();
 				}
+				// TODO: CellMap 
 				if (jData.TryGetValue("Cells", out JToken jCells) && jCells.Type == JTokenType.Array)
 				{
 					List<IntVector3> filledCells = new List<IntVector3>();
@@ -160,308 +174,364 @@ namespace CustomModules
 					}
 					block.attachPoints = aps.ToArray();
 				}
-
-				// ------------------------------------------------------
-				// Sub objects
-				if (jData.TryGetValue("SubObjects", out JToken jSubObjectList) && jSubObjectList.Type == JTokenType.Array)
+				// Some basic block stats
+				damageable.DamageableType = (ManDamage.DamageableType)TryParse(jData, "DamageableType", (int)damageable.DamageableType);
+				moduleDamage.m_DamageDetachFragility = TryParse(jData, "DetachFragility", moduleDamage.m_DamageDetachFragility);
+				block.m_DefaultMass = TryParse(jData, "Mass", block.m_DefaultMass);
+				// Center of Mass
+				if (jData.TryGetValue("CenterOfMass", out JToken com) && com.Type == JTokenType.Array)
 				{
-					foreach(JToken token in (JArray)jSubObjectList)
+					JArray comVector = (JArray)com;
+					Transform comTrans = block.transform.Find("CentreOfMass");
+					if (comTrans == null)
 					{
-						if(token.Type == JTokenType.Object)
-						{
-							JObject jSubObject = (JObject)token;
+						comTrans = new GameObject("CentreOfMass").transform;
+						comTrans.SetParent(block.transform);
+						comTrans.localScale = Vector3.one;
+						comTrans.localRotation = Quaternion.identity;
+					}
+					comTrans.localPosition = new Vector3(comVector[0].ToObject<float>(), comVector[1].ToObject<float>(), comVector[2].ToObject<float>());
 
-							string subObjName = TryParse(jSubObject, "SubOverrideName", "");
-							GameObject target = (block.transform.RecursiveFindWithProperties(subObjName) as Component)?.gameObject;
-							if(target != null)
-							{
-								// Target acquired, lets tweak
-								bool destroyColliders = TryParse(jSubObject, "DestroyExistingColliders", false);
-								bool destroyRenderers = TryParse(jSubObject, "DestroyExistingRenderer", false);
-								bool supressBoxColliderFallback = TryParse(jSubObject, "SupressBoxColliderFallback", false);
-								// Why destroy and replace?
-
-								MeshRenderer meshRenderer = target.GetComponent<MeshRenderer>();
-								MeshFilter meshFilter = target.GetComponent<MeshFilter>();
-								if (meshRenderer != null && meshFilter != null)
-								{
-									if (jSubObject.TryGetValue("MeshName", out JToken jMeshName) && jMeshName.Type == JTokenType.String)
-									{
-										// Load mesh from mod's additional assets
-										meshFilter.mesh = (Mesh)mod.FindAsset(jMeshName.ToString());
-									}
-
-									// TODO: MeshMaterialName
-								}
-
-								// TODO: ColliderMeshName
-
-								// Optional resize settings
-								if (jSubObject.TryGetValue("SubPosition", out JToken jPos) && jPos.Type == JTokenType.Object)
-									target.transform.localPosition = GetVector3(jPos);
-								if (jSubObject.TryGetValue("SubRotation", out JToken jEuler) && jEuler.Type == JTokenType.Object)
-									target.transform.localEulerAngles = GetVector3(jEuler);
-								if (jSubObject.TryGetValue("SubScale", out JToken jScale) && jScale.Type == JTokenType.Object)
-									target.transform.localScale = GetVector3(jScale);
-
-
-							}
-							else
-							{
-								Debug.LogError($"Could not find sub object {subObjName} in {block.name}");
-							}
-						}
+					// TODO: Weird thing about offseting colliders from Nuterra
+					//for (int i = 0; i < Prefab.transform.childCount; i++)
+					//{
+					//	transform = Prefab.transform.GetChild(i);
+					//	if (transform.name.Length < 5 && transform.name.EndsWith("col")) // "[a-z]col"
+					//		transform.localPosition = CenterOfMass;
+					//}
+				}
+				// IconName override
+				if(jData.TryGetValue("IconName", out JToken jIconName) && jIconName.Type == JTokenType.String)
+				{
+					UnityEngine.Object obj = mod.FindAsset(jIconName.ToString());
+					if(obj != null && obj is Sprite)
+					{
+						def.m_Icon = ((Sprite)obj).texture;
 					}
 				}
 
-				// TODO: Death Explosion Reference
 				// TODO: Emission Mode
 				// Filepath? For reparse?
-				
-
+				#endregion
 				// ------------------------------------------------------
-				// Deserializers
-				if (jData.TryGetValue("Deserializer", out JToken jDeserialObj) && jDeserialObj.Type == JTokenType.Object)
-				{
-					JObject jDeserializer = (JObject)jDeserialObj;
 
-					foreach (KeyValuePair<string, JToken> kvp in jDeserializer)
-					{
-						string[] split = kvp.Key.Split('|');
-						if(split.Length == 0)
-						{
-
-						}
-					}
-				}
-
+				// Start recursively adding objects with the root. 
+				// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
+				RecursivelyAddSubObject(block, mod, block.transform, jData, TTBlockReferences.kMissingTextureTankBlock, false);
 
 				return true;
 			}
 			return false;
 		}
 
-
-
-		private void DeserializeComponent(Transform root, Component target, Type componentType, JObject jObject)
+		private void RecursivelyAddSubObject(TankBlock block, ModContents mod, Transform parentTransform, JObject jData, Material defaultMaterial, bool isNewSubObject)
 		{
-			// Let's get reflective!
-			foreach(JProperty jProperty in jObject.Properties())
+			// Material - Used in the next step
+			Material mat = null;
+
+			bool hasMaterial = jData.TryGetValue("MeshMaterialName", out JToken jMaterial) && jMaterial.Type == JTokenType.String;
+			bool hasAlbedo = jData.TryGetValue("MeshTextureName", out JToken jAlbedo) && jAlbedo.Type == JTokenType.String;
+			bool hasGloss = jData.TryGetValue("MeshGlossTextureName", out JToken jGloss) && jGloss.Type == JTokenType.String;
+			bool hasEmissive = jData.TryGetValue("MeshEmissionTextureName", out JToken jEmissive) && jEmissive.Type == JTokenType.String;
+			bool hasAnyOverrides = hasAlbedo || hasGloss || hasEmissive;
+
+			// Calculate a unique string that defines this material
+			string materialName = "";
+			if (hasMaterial)
+				materialName = $"{materialName}M:{jMaterial.ToString()};";
+			if (hasAlbedo)
+				materialName = $"{materialName}A:{jAlbedo.ToString()};";
+			if (hasGloss)
+				materialName = $"{materialName}G:{jGloss.ToString()};";
+			if (hasEmissive)
+				materialName = $"{materialName}E:{jEmissive.ToString()};";
+
+			if (hasAnyOverrides)
 			{
-				BindingFlags bind = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-				try
+				if (sMaterialCache.TryGetValue(materialName, out Material existingMat))
+					mat = existingMat;
+				else
 				{
-					// Parse our string
-					string[] split = jProperty.Name.Split('|');
-					if (split.Length == 0)
-						continue;
-
-					// See if we have a prefix |
-					string name = split[0];
-					bool wipe = false;
-					bool instantiate = false;
-					if(split.Length == 2)
+					// Default to missing texture, then see if we have a base texture reference
+					mat = defaultMaterial;
+					if (hasMaterial)
 					{
-						wipe = split[0] == "Wipe";
-						instantiate = split[0] == "Instantiate";
-						name = split[1];
+						string matName = jMaterial.ToString().Replace("Venture_", "VEN_").Replace("GeoCorp_", "GC_");
+						mat = TTBlockReferences.FindMaterial(matName);
 					}
 
-					FieldInfo tField = componentType.GetField(name, bind);
-					PropertyInfo tProp = componentType.GetProperty(name, bind);
-					
-					bool tryFieldInstead = tProp == null;
+					// Now apply overrides
+					List<string> shaderKeywords = new List<string>(mat.shaderKeywords);
+					if (hasAlbedo)
+					{
+						Texture2D albedo = TTBlockReferences.Find<Texture2D>(jAlbedo.ToString(), mod);
+						if (albedo != null)
+							mat.SetTexture("_MainTex", albedo);
+					}
+					if (hasGloss)
+					{
+						Texture2D gloss = TTBlockReferences.Find<Texture2D>(jGloss.ToString(), mod);
+						if (gloss != null)
+							mat.SetTexture("_MetallicGlossMap", gloss);
+						if (!shaderKeywords.Contains("_METALLICGLOSSMAP"))
+							shaderKeywords.Add("_METALLICGLOSSMAP");
+					}
+					if (hasEmissive)
+					{
+						Texture2D emissive = TTBlockReferences.Find<Texture2D>(jEmissive.ToString(), mod);
+						if (emissive != null)
+							mat.SetTexture("_EmissionMap", emissive);
+						if (!shaderKeywords.Contains("_EMISSION"))
+							shaderKeywords.Add("_EMISSION");
+						mat.SetColor("_EmissionColor", Color.white);
+					}
+					mat.shaderKeywords = shaderKeywords.ToArray();
 
-					if (tryFieldInstead && tField == null)
-					{
-						Debug.LogError($"!!! Property '{name}' does not exist in type '{componentType}'");
-						continue;
-					}
-
-					if (jProperty.Value is JObject jChild)
-					{
-						SetJSONObject(jChild, target, wipe, instantiate, tField, tProp, tryFieldInstead);
-					}
-					else if (jProperty.Value is JArray jArray)
-					{
-						object sourceArray = Wipe ? null : (
-							tryFieldInstead ? tField.GetValue(instance) : (
-								tProp.CanRead ? tProp.GetValue(instance, null) : null));
-						var newArray = MakeJSONArray(sourceArray, tryFieldInstead ? tField.FieldType : tProp.PropertyType, jArray, Spacing, Wipe); // add Wipe param, copy custom names to inside new method
-						if (tryFieldInstead)
-						{
-							tField.SetValue(instance, newArray);
-						}
-						else if (tProp.CanWrite)
-						{
-							tProp.SetValue(instance, newArray, null);
-						}
-						else throw new TargetException("Property is read-only!");
-					}
-					else if (jProperty.Value is JValue jValue)
-					{
-						SetJSONValue(jValue, jsonProperty, instance, tryFieldInstead, tField, tProp);
-					}
+					// Cache our newly created material in case it comes up again
+					sMaterialCache.Add(materialName, mat);
 				}
-				catch (Exception E)
+			}
+			else
+			{
+				// Actually, if we make no references, we can keep official modded block behaviour
+				//mat = TTBlockReferences.kMissingTextureTankBlock;
+			}
+
+			// Physics Material - Used in the next step
+			PhysicMaterial physMat = new PhysicMaterial();
+			if (jData.TryGetValue("Friction", out JToken jFriction))
+				physMat.dynamicFriction = jFriction.ToObject<float>();
+			if (jData.TryGetValue("StaticFriction", out JToken jStaticFriction))
+				physMat.staticFriction = jStaticFriction.ToObject<float>();
+			if (jData.TryGetValue("Bounciness", out JToken jBounce))
+				physMat.bounciness = jBounce.ToObject<float>();
+			// MeshName & ColliderMeshName Override
+			Mesh mesh = null;
+			Mesh colliderMesh = null;
+			bool supressBoxColliderFallback = TryParse(jData, "SupressBoxColliderFallback", false);
+			if (jData.TryGetValue("MeshName", out JToken jMeshName) && jMeshName.Type == JTokenType.String)
+			{
+				UnityEngine.Object obj = mod.FindAsset(jMeshName.ToString());
+				if (obj != null && obj is Mesh)
 				{
-					Console.WriteLine(Spacing + "!!! Error on modifying property " + jsonProperty.Name);
-					Console.WriteLine(Spacing + "!!! " + E/*+"\n"+E.StackTrace*/);
+					mesh = (Mesh)obj;
+				}
+			}
+			if (jData.TryGetValue("ColliderMeshName", out JToken jColliderMeshName) && jColliderMeshName.Type == JTokenType.String)
+			{
+				UnityEngine.Object obj = mod.FindAsset(jColliderMeshName.ToString());
+				if (obj != null && obj is Mesh)
+				{
+					colliderMesh = (Mesh)obj;
 				}
 			}
 
+			// This is the only bit where the root object majorly differs from subobjects
+			if (parentTransform == block.transform)
+			{
+				// Generally speaking, the root of a TT block does not have meshes, so needs to add a child
+				// Add mesh / collider mesh sub GameObject if we have either
+				if (mesh != null || colliderMesh != null)
+				{
+					GameObject meshObj = CreateMeshGameObject(parentTransform, mesh, mat, colliderMesh, physMat, supressBoxColliderFallback);
+				}
+			}
+			else // However, if we are poking around in a subobject, we may want to swap out existing renderers
+			{
+				// If we provided a new mesh, do a full swap
+				if (mesh != null)
+				{
+					parentTransform.gameObject.EnsureComponent<MeshFilter>().sharedMesh = mesh;
+					parentTransform.gameObject.EnsureComponent<MeshRenderer>().sharedMaterial = mat;
+				}
+				else // If we don't want to swap out the mesh we may still want to swap out the properties of existing renderers
+				{
+					bool forceEmissive = TryParse(jData, "ForceEmission", false);
+					foreach(Renderer renderer in parentTransform.GetComponents<Renderer>())
+					{
+						renderer.sharedMaterial = mat;
+						if (renderer is ParticleSystemRenderer psrenderer)
+							psrenderer.trailMaterial = mat;
+
+						if(forceEmissive)
+							MaterialSwapper.SetMaterialPropertiesOnRenderer(renderer, ManTechMaterialSwap.MaterialColour.Normal, 1f, 0);
+					}
+				}
+
+				// If we provided a collider mesh, do a full swap
+				if(colliderMesh != null)
+				{
+					MeshCollider mc = parentTransform.gameObject.EnsureComponent<MeshCollider>();
+					mc.convex = true;
+					mc.sharedMesh = colliderMesh;
+					mc.sharedMaterial = physMat;
+				}
+				// If we want a box collider, try to make one from our mesh
+				bool makeBoxCollider = TryParse(jData, "MakeBoxCollider", false);
+				if(makeBoxCollider)
+				{
+					BoxCollider bc = parentTransform.gameObject.EnsureComponent<BoxCollider>();
+					bc.sharedMaterial = physMat;
+					if (mesh != null)
+					{
+						mesh.RecalculateBounds();
+						bc.size = mesh.bounds.size - Vector3.one * 0.2f;
+						bc.center = mesh.bounds.center;
+					}
+					else 
+					{
+						bc.size = Vector3.one;
+						bc.center = Vector3.zero;
+					}
+				}
+				// Weird option from TTQMM that has a fixed size sphere
+				bool makeSphereCollider = TryParse(jData, "MakeSphereCollider", false);
+				if(makeSphereCollider)
+				{
+					SphereCollider sc = parentTransform.gameObject.EnsureComponent<SphereCollider>();
+					sc.radius = 0.5f;
+					sc.center = Vector3.zero;
+					sc.sharedMaterial = physMat;
+				}
+				// Allow resizing of sub objects
+				if(jData.TryGetValue("SubScale", out JToken jSubScale))
+				{
+					parentTransform.localScale = GetVector3(jSubScale);
+				}
+			}
+
+			// ------------------------------------------------------
+			#region Sub objects
+			if (jData.TryGetValue("SubObjects", out JToken jSubObjectList) && jSubObjectList.Type == JTokenType.Array)
+			{
+				foreach (JToken token in (JArray)jSubObjectList)
+				{
+					if (token.Type == JTokenType.Object)
+					{
+						JObject jSubObject = (JObject)token;
+
+						string subObjName = TryParse(jSubObject, "SubOverrideName", "");
+						GameObject target = (parentTransform.RecursiveFindWithProperties(subObjName) as Component)?.gameObject;
+						bool creatingNew = target = null;
+						if (target != null)
+						{
+							if (jData.TryGetValue("Layer", out JToken jLayer) && jLayer.Type == JTokenType.Integer)
+								target.layer = jLayer.ToObject<int>();
+						}
+						else // Reference was not matched, so we want to add a new subobject
+						{
+							if (subObjName.NullOrEmpty())
+								subObjName = $"SubObject_{parentTransform.childCount + 1}";
+
+							target = new GameObject(subObjName);
+							target.transform.parent = parentTransform;
+							target.transform.localPosition = Vector3.zero;
+							target.transform.localRotation = Quaternion.identity;
+
+							if (jData.TryGetValue("Layer", out JToken jLayer) && jLayer.Type == JTokenType.Integer)
+								target.layer = jLayer.ToObject<int>();
+							else
+								target.layer = 8; // Globals.inst.layerTank;
+						}
+
+						// Target acquired, lets tweak a few things
+						bool destroyColliders = TryParse(jSubObject, "DestroyExistingColliders", false);
+						if(destroyColliders)
+						{
+							foreach (Collider col in target.GetComponents<Collider>())
+								UnityEngine.Object.DestroyImmediate(col);
+						}
+
+						bool destroyRenderers = TryParse(jSubObject, "DestroyExistingRenderer", false);
+						if (destroyRenderers)
+						{
+							foreach (Renderer renderer in target.GetComponents<Renderer>())
+								UnityEngine.Object.DestroyImmediate(renderer);
+							foreach (MeshFilter mf in target.GetComponents<MeshFilter>())
+								UnityEngine.Object.DestroyImmediate(mf);
+						}
+
+						// If there is already a material set on this sub object ref, use it
+						if(!creatingNew && !destroyRenderers)
+						{
+							Renderer ren = target.GetComponent<Renderer>();
+							if (ren)
+								mat = ren.sharedMaterial;
+						}
+
+						// Optional resize settings
+						if (jSubObject.TryGetValue("SubPosition", out JToken jPos) && jPos.Type == JTokenType.Object)
+							target.transform.localPosition = GetVector3(jPos);
+						if (jSubObject.TryGetValue("SubRotation", out JToken jEuler) && jEuler.Type == JTokenType.Object)
+							target.transform.localEulerAngles = GetVector3(jEuler);
+						if (jSubObject.TryGetValue("SubScale", out JToken jScale) && jScale.Type == JTokenType.Object)
+							target.transform.localScale = GetVector3(jScale);
+
+						RecursivelyAddSubObject(block, mod, target.transform, jSubObject, mat, creatingNew);
+
+					}
+				}
+			}
+			#endregion
+			// ------------------------------------------------------
+
+			// ------------------------------------------------------
+			#region Deserializers
+			if (jData.TryGetValue("Deserializer", out JToken jDeserialObj) && jDeserialObj.Type == JTokenType.Object)
+			{
+				JObject jDeserializer = (JObject)jDeserialObj;
+
+				// TTQMM Ref: GameObjectJSON.CreateGameObject(jBlock.Deserializer, blockbuilder.Prefab);
+
+				foreach (KeyValuePair<string, JToken> kvp in jDeserializer)
+				{
+					string[] split = kvp.Key.Split('|');
+					if (split.Length == 0)
+					{
+
+					}
+				}
+			}
+			#endregion
+			// ------------------------------------------------------
 		}
 
-		private void DeserializeGameObject(Transform root, Transform target, JObject jObject)
+		private GameObject CreateMeshGameObject(Transform parent, Mesh mesh, Material mat, Mesh colliderMesh, PhysicMaterial physMat, bool supressBoxColliderFallback)
 		{
-
-			foreach (KeyValuePair<string, JToken> kvp in jObject)
+			// TTQMM Ref: SetModel's various variants
+			GameObject model = new GameObject("m_MeshRenderer");
+			if (colliderMesh != null)
 			{
-				if (kvp.Value.Type != JTokenType.Object)
-				{
-					Debug.LogError($"Unexpected token type {kvp.Value.Type} for token {kvp.Key}");
-					continue;
-				}
-
-				string[] split = kvp.Key.Split('|');
-				if (split.Length == 1) // "ModuleVision", "UnityEngine.Transform" etc.
-				{
-					// Format will be "{ComponentType} {Index}" where the index specifies the child index if there are multiple targets
-					string[] typeNameAndIndex = split[0].Split(' ');
-					if (typeNameAndIndex.Length == 0)
-						continue;
-
-					// See if we have an index
-					int index = 0;
-					if (typeNameAndIndex.Length >= 2)
-						int.TryParse(typeNameAndIndex[1], out index);
-
-					// Try and find our type
-					Type componentType = ReferenceFinder.GetType(typeNameAndIndex[0]);
-					if(componentType == null)
-					{
-						Debug.LogError($"Could not find component type {typeNameAndIndex[0]}");
-						continue;
-					}
-
-					// See if we have an existing component. If not, make one
-					Component component = target.gameObject.GetComponent(componentType, index);
-					if(component == null)
-					{
-						component = target.gameObject.AddComponent(componentType);
-					}
-
-					// If we still don't have one, exit
-					if(component == null)
-					{
-						Debug.LogError($"Could not relocate component {typeNameAndIndex[0]}");
-						continue;
-					}
-
-					DeserializeComponent(root, component, (JObject)kvp.Value);
-				}
-				else if(split.Length == 2) //
-				{
-					GameObject childObject = null;
-					string name = split[1];
-					
-					switch (split[0])
-					{
-						case "GameObject": // Create a new child object
-						{
-							childObject = new GameObject(split[1]);
-							childObject.transform.SetParent(target);
-							childObject.transform.localPosition = Vector3.zero;
-							childObject.transform.localRotation = Quaternion.identity;
-							childObject.transform.localScale = Vector3.one;
-							break;
-						}
-						case "Reference": // Copy a child object from another prefab
-						{
-							if(ReferenceFinder.GetReferenceFromBlockResource(name, out object reference))
-							{
-								GameObject referenceObject = null;
-								if (reference is GameObject)
-									referenceObject = (GameObject)reference;
-								else if (reference is Transform)
-									referenceObject = ((Transform)reference).gameObject;
-								else if (reference is Component)
-								{
-									// TODO: line 644ish JsonToGameObject
-								}
-								else
-									Debug.LogError("Unknown object found as reference");
-
-								if(referenceObject != null)
-								{
-									childObject = GameObject.Instantiate(referenceObject);
-									string newName = name;
-									int count = 1;
-									while (target.transform.Find(newName))
-									{
-										newName = $"{name}_{++count}";
-									}
-									childObject.name = newName;
-									childObject.transform.SetParent(target.transform);
-									childObject.transform.localPosition = referenceObject.transform.localPosition;
-									childObject.transform.localRotation = referenceObject.transform.localRotation;
-									childObject.transform.localScale = referenceObject.transform.localScale;
-								}
-							}
-							break;
-						}
-						case "Duplicate": // Copy a child object from this prefab
-						{
-							if(name.Contains('/') || name.Contains('.'))
-							{
-								var nGO = root.RecursiveFindWithProperties(name);
-								if (nGO != null)
-								{
-									if (nGO is Component nGOc)
-										childObject = nGOc.gameObject;
-									else if (nGO is GameObject nGOg)
-										childObject = nGOg;
-								}
-							}
-							break;
-						}
-						case "Instantiate": // Instantiate something
-						{
-							break;
-						}
-					}
-
-					// First fallback, try looking up the object by the full string
-					if (childObject == null)
-						childObject = target.transform.Find(name)?.gameObject;
-
-					// Final fallback, just make an empty object
-					if (childObject == null)
-					{
-						childObject = new GameObject(name);
-						childObject.transform.parent = target.transform;
-					}
-					else // Not sure if this should be else, see JsonToGameObject.cs:702
-					{
-						if (split[0] == "Duplicate")
-						{
-							childObject = GameObject.Instantiate(childObject);
-							name = name.Substring(1 + name.LastIndexOfAny(new char[] { '/', '.' }));
-							string newName = $"{name}_copy";
-							int count = 1;
-							while (target.transform.Find(newName))
-							{
-								newName = $"{name}_copy_{(++count)}";
-							}
-							childObject.name = newName;
-							childObject.transform.parent = target.transform;
-						}
-					}
-
-					if (kvp.Value.Type == JTokenType.Object)
-						DeserializeGameObject(root, childObject.transform, (JObject)kvp.Value);
-				}
+				// TTQMM Ref: blockbuilder.SetModel(mesh, colliderMesh, true, localmat, localphysmat);
+				MeshCollider mc = model.AddComponent<MeshCollider>();
+				mc.convex = true;
+				mc.sharedMesh = colliderMesh;
+				mc.sharedMaterial = physMat;
 			}
+			else if (!supressBoxColliderFallback) // if(CreateBoxCollider)
+			{
+				BoxCollider bc = model.AddComponent<BoxCollider>();
+				if (mesh != null)
+				{
+					mesh.RecalculateBounds();
+					bc.size = mesh.bounds.size - Vector3.one * 0.2f;
+					bc.center = mesh.bounds.center;
+				}
+				bc.sharedMaterial = physMat;
+			}
+
+			if (mesh != null)
+			{
+				// TTQMM Ref: blockbuilder.SetModel(mesh, !jBlock.SupressBoxColliderFallback, localmat, localphysmat);
+				model.AddComponent<MeshFilter>().sharedMesh = mesh;
+				model.AddComponent<MeshRenderer>().sharedMaterial = mat ?? GameObjectJSON.MaterialFromShader(); // TODO: Replace this
+			}
+
+			model.transform.parent = parent;
+			model.transform.localPosition = Vector3.zero;
+			model.transform.localRotation = Quaternion.identity;
+			model.layer = Globals.inst.layerTank;
+			return model;
 		}
 
 		private void RemoveChildren<T>(Component obj) where T : Component
