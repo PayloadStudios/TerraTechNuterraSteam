@@ -4,11 +4,11 @@ using UnityEngine;
 
 namespace CustomModules
 {
-    public class MyMod : ModBase
+    public class NuterraMod : ModBase
     {
 		public override void Init()
 		{
-			JSONBlockLoader.RegisterModuleLoader(new MyModuleLoader());
+			JSONBlockLoader.RegisterModuleLoader(new NuterraModuleLoader());
 		}
 
 		public override void DeInit()

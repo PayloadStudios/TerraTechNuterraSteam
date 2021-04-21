@@ -34,9 +34,11 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\0Harmony.dll</HintPath>
+    </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>..\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\Newtonsoft.Json.dll</HintPath>
@@ -57,20 +59,70 @@
       <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.Networking">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.Networking.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>E:\Steam\steamapps\common\TerraTech Beta\TerraTechWin64_Data\Managed\UnityEngine.UIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MyModuleLoader.cs" />
-    <Compile Include="MyMod.cs" />
+    <Compile Include="BlockExamples.cs" />
+    <Compile Include="BlockLoader.cs" />
+    <Compile Include="BlockPrefabBuilder.cs" />
+    <Compile Include="CustomBlock.cs" />
+    <Compile Include="CustomCorporation.cs" />
+    <Compile Include="CustomModules.cs" />
+    <Compile Include="CustomModulesConsumeToShell.cs" />
+    <Compile Include="CustomRecipe.cs" />
+    <Compile Include="CustomTechComponents.cs" />
+    <Compile Include="DirectoryBlockLoader.cs" />
+    <Compile Include="DirectoryCorpLoader.cs" />
+    <Compile Include="GameObjectExtensions.cs" />
+    <Compile Include="JsonToGameObject.cs" />
+    <Compile Include="ModuleFirstPersonView.cs" />
+    <Compile Include="NetCameras.cs" />
+    <Compile Include="NetHandler.cs" />
+    <Compile Include="NuterraSteam\NuterraMod.cs" />
+    <Compile Include="NuterraSteam\NuterraModuleLoader.cs" />
+    <Compile Include="ObjImporter.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReferenceFinder.cs" />
+    <Compile Include="ReflectionHelper.cs" />
+    <Compile Include="UnstableSupport_RemoveWhenStable.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
