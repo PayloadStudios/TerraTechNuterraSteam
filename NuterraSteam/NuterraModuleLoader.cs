@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json.Linq;
-using Nuterra.BlockInjector;
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -58,7 +57,7 @@ namespace CustomModules
 					// This code block copies our chosen reference block
 					// TTQMM REF: BlockPrefabBuilder.Initialize
 
-					GameObject originalGameObject = TTBlockReferences.FindBlockByName(jRef.ToString());
+					GameObject originalGameObject = TTReferences.FindBlockByName(jRef.ToString());
 					TankBlock original = originalGameObject.GetComponent<TankBlock>();
 					TankBlock copy = UnityEngine.Object.Instantiate(original);
 					TankBlockTemplate fakeTemplate = copy.gameObject.AddComponent<TankBlockTemplate>();
@@ -126,7 +125,7 @@ namespace CustomModules
 				if (jData.TryGetValue("DeathExplosionReference", out JToken jDeathRef) && jDeathRef.Type == JTokenType.String)
 				{
 					string deathExpRef = jDeathRef.ToString();
-					GameObject refBlock = TTBlockReferences.FindBlockFromString(deathExpRef);
+					GameObject refBlock = TTReferences.FindBlockFromString(deathExpRef);
 					if(refBlock != null)
 					{
 						moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
@@ -217,7 +216,7 @@ namespace CustomModules
 
 				// Start recursively adding objects with the root. 
 				// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
-				RecursivelyAddSubObject(block, mod, block.transform, jData, TTBlockReferences.kMissingTextureTankBlock, false);
+				RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
 
 				return true;
 			}
@@ -252,40 +251,19 @@ namespace CustomModules
 					mat = existingMat;
 				else
 				{
+					
 					// Default to missing texture, then see if we have a base texture reference
 					mat = defaultMaterial;
 					if (hasMaterial)
 					{
 						string matName = jMaterial.ToString().Replace("Venture_", "VEN_").Replace("GeoCorp_", "GC_");
-						mat = TTBlockReferences.FindMaterial(matName);
+						mat = TTReferences.FindMaterial(matName);
 					}
 
-					// Now apply overrides
-					List<string> shaderKeywords = new List<string>(mat.shaderKeywords);
-					if (hasAlbedo)
-					{
-						Texture2D albedo = TTBlockReferences.Find<Texture2D>(jAlbedo.ToString(), mod);
-						if (albedo != null)
-							mat.SetTexture("_MainTex", albedo);
-					}
-					if (hasGloss)
-					{
-						Texture2D gloss = TTBlockReferences.Find<Texture2D>(jGloss.ToString(), mod);
-						if (gloss != null)
-							mat.SetTexture("_MetallicGlossMap", gloss);
-						if (!shaderKeywords.Contains("_METALLICGLOSSMAP"))
-							shaderKeywords.Add("_METALLICGLOSSMAP");
-					}
-					if (hasEmissive)
-					{
-						Texture2D emissive = TTBlockReferences.Find<Texture2D>(jEmissive.ToString(), mod);
-						if (emissive != null)
-							mat.SetTexture("_EmissionMap", emissive);
-						if (!shaderKeywords.Contains("_EMISSION"))
-							shaderKeywords.Add("_EMISSION");
-						mat.SetColor("_EmissionColor", Color.white);
-					}
-					mat.shaderKeywords = shaderKeywords.ToArray();
+					Texture2D albedo = hasAlbedo ? TTReferences.Find<Texture2D>(jAlbedo.ToString(), mod) : null;
+					Texture2D gloss = hasGloss ? TTReferences.Find<Texture2D>(jGloss.ToString(), mod) : null;
+					Texture2D emissive = hasEmissive ? TTReferences.Find<Texture2D>(jEmissive.ToString(), mod) : null;
+					mat = Util.CreateMaterial(mat, true, albedo, gloss, emissive);
 
 					// Cache our newly created material in case it comes up again
 					sMaterialCache.Add(materialName, mat);
@@ -524,7 +502,7 @@ namespace CustomModules
 			{
 				// TTQMM Ref: blockbuilder.SetModel(mesh, !jBlock.SupressBoxColliderFallback, localmat, localphysmat);
 				model.AddComponent<MeshFilter>().sharedMesh = mesh;
-				model.AddComponent<MeshRenderer>().sharedMaterial = mat ?? GameObjectJSON.MaterialFromShader(); // TODO: Replace this
+				model.AddComponent<MeshRenderer>().sharedMaterial = mat ?? TTReferences.kMissingTextureTankBlock;
 			}
 
 			model.transform.parent = parent;

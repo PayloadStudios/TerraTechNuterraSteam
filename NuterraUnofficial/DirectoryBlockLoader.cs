@@ -529,49 +529,49 @@ namespace Nuterra.BlockInjector
 
 
                 /*Local*/
-                Material localmat = null;
-
-                bool missingflag1 = string.IsNullOrWhiteSpace(jBlock.MeshTextureName),
-                    missingflag2 = string.IsNullOrWhiteSpace(jBlock.MeshGlossTextureName),
-                    missingflag3 = string.IsNullOrWhiteSpace(jBlock.MeshEmissionTextureName),
-                    missingflags = missingflag1 && missingflag2 && missingflag3;
-
-                string DupeCheck = "M:" + jBlock.MeshMaterialName + ";A:" + jBlock.MeshTextureName + ";G:" + jBlock.MeshGlossTextureName + ";E:" + jBlock.MeshEmissionTextureName;
-                if (!missingflags && HashMAGE.TryGetValue(DupeCheck, out Material localcustomMat))
-                {
-                    L("Get Cached Material (" + DupeCheck + ")", l);
-                    localmat = localcustomMat;
-                }
-                else
-                {
-                    if (!string.IsNullOrEmpty(jBlock.MeshMaterialName))
-                    {
-                        L("Get Material", l);
-                        string matName = jBlock.MeshMaterialName.Replace("Venture_", "VEN_")
-                                                                .Replace("GeoCorp_", "GC_");
-                        try
-                        {
-                            localmat = GameObjectJSON.GetObjectFromGameResources<Material>(MaterialT, matName);
-                            if (localmat == null) Console.WriteLine(matName + " is not a valid Game Material!", l);
-                        }
-                        catch { Console.WriteLine(jBlock.MeshMaterialName + " is not a valid Game Material!"); }
-                    }
-                    if (localmat == null)
-                        localmat = GameObjectJSON.MaterialFromShader(Color.white);
-
-                    if (!missingflags)
-                    {
-                        L("Texture Material", l);
-                        localmat = GameObjectJSON.SetTexturesToMaterial(true, localmat,
-                            missingflag1 ? null :
-                            GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, jBlock.MeshTextureName),
-                            missingflag2 ? null :
-                            GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, jBlock.MeshGlossTextureName),
-                            missingflag3 ? null :
-                            GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, jBlock.MeshEmissionTextureName));
-                        HashMAGE.Add(DupeCheck, localmat);
-                    }
-                }
+                //Material localmat = null;
+				//
+                //bool missingflag1 = string.IsNullOrWhiteSpace(jBlock.MeshTextureName),
+                //    missingflag2 = string.IsNullOrWhiteSpace(jBlock.MeshGlossTextureName),
+                //    missingflag3 = string.IsNullOrWhiteSpace(jBlock.MeshEmissionTextureName),
+                //    missingflags = missingflag1 && missingflag2 && missingflag3;
+				//
+                //string DupeCheck = "M:" + jBlock.MeshMaterialName + ";A:" + jBlock.MeshTextureName + ";G:" + jBlock.MeshGlossTextureName + ";E:" + jBlock.MeshEmissionTextureName;
+                //if (!missingflags && HashMAGE.TryGetValue(DupeCheck, out Material localcustomMat))
+                //{
+                //    L("Get Cached Material (" + DupeCheck + ")", l);
+                //    localmat = localcustomMat;
+                //}
+                //else
+                //{
+                //    if (!string.IsNullOrEmpty(jBlock.MeshMaterialName))
+                //    {
+                //        L("Get Material", l);
+                //        string matName = jBlock.MeshMaterialName.Replace("Venture_", "VEN_")
+                //                                                .Replace("GeoCorp_", "GC_");
+                //        try
+                //        {
+                //            localmat = GameObjectJSON.GetObjectFromGameResources<Material>(MaterialT, matName);
+                //            if (localmat == null) Console.WriteLine(matName + " is not a valid Game Material!", l);
+                //        }
+                //        catch { Console.WriteLine(jBlock.MeshMaterialName + " is not a valid Game Material!"); }
+                //    }
+                //    if (localmat == null)
+                //        localmat = GameObjectJSON.MaterialFromShader(Color.white);
+				//
+                //    if (!missingflags)
+                //    {
+                //        L("Texture Material", l);
+                //        localmat = GameObjectJSON.SetTexturesToMaterial(true, localmat,
+                //            missingflag1 ? null :
+                //            GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, jBlock.MeshTextureName),
+                //            missingflag2 ? null :
+                //            GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, jBlock.MeshGlossTextureName),
+                //            missingflag3 ? null :
+                //            GameObjectJSON.GetObjectFromUserResources<Texture2D>(Texture2DT, jBlock.MeshEmissionTextureName));
+                //        HashMAGE.Add(DupeCheck, localmat);
+                //    }
+                //}
 
                 //L("Get Collision Material", l);
                 ///*Local*/
@@ -1030,32 +1030,32 @@ namespace Nuterra.BlockInjector
             return 0;
         }
 
-        private static PhysicMaterial CopyPhysicMaterial(PhysicMaterial original)
-        {
-            return new PhysicMaterial() { dynamicFriction = original.dynamicFriction, bounciness = original.bounciness, staticFriction = original.staticFriction };
-        }
-        private static string GetPath(this Transform transform, Transform targetParent = null)
-        {
-            if (transform == targetParent) return "";
-            string result = transform.name;
-            Transform parent = transform.parent;
-            while(!(parent == targetParent || parent == null))
-            {
-                result = parent.name + "/" + result;
-                parent = parent.parent;
-            }
-            return result;
-        }
+        //private static PhysicMaterial CopyPhysicMaterial(PhysicMaterial original)
+        //{
+        //    return new PhysicMaterial() { dynamicFriction = original.dynamicFriction, bounciness = original.bounciness, staticFriction = original.staticFriction };
+        //}
+        //private static string GetPath(this Transform transform, Transform targetParent = null)
+        //{
+        //    if (transform == targetParent) return "";
+        //    string result = transform.name;
+        //    Transform parent = transform.parent;
+        //    while(!(parent == targetParent || parent == null))
+        //    {
+        //        result = parent.name + "/" + result;
+        //        parent = parent.parent;
+        //    }
+        //    return result;
+        //}
 
-        private static void RotateChildren(this Transform transform, Vector3 Rotation)
-        {
-            for (int i = 0; i < transform.childCount; i++)
-            {
-                Transform Child = transform.GetChild(i);
-                Child.Rotate(Rotation, Space.Self);
-                Child.localPosition = Quaternion.Euler(Rotation) * Child.localPosition;
-            }
-        }
+       // private static void RotateChildren(this Transform transform, Vector3 Rotation)
+       // {
+       //     for (int i = 0; i < transform.childCount; i++)
+       //     {
+       //         Transform Child = transform.GetChild(i);
+       //         Child.Rotate(Rotation, Space.Self);
+       //         Child.localPosition = Quaternion.Euler(Rotation) * Child.localPosition;
+       //     }
+       // }
         public static string StripComments(string input)
         {
             // JavaScriptSerializer doesn't accept commented-out JSON,

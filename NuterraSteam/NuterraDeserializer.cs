@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -11,14 +12,17 @@ namespace CustomModules
 {
 	public static class NuterraDeserializer
 	{
-		public static void DeserializeComponent(Transform root, Component target, Type componentType, JObject jObject)
-		{
-			// TODO: Stage 2
-		}
+		private static Type kTypeShader = typeof(Shader);
+		private static Type kTypeUnityObject = typeof(UnityEngine.Object);
+		private static Type kTypeComponent = typeof(UnityEngine.Component);
+		private static Type kTypeGameObject = typeof(UnityEngine.GameObject);
+		private static Type kTypeTransform = typeof(UnityEngine.Transform);
+		private static Type kTypeJToken = typeof(JToken);
 
-
-		/*
-		private static void DeserializeComponent(Transform root, Component target, Type componentType, JObject jObject)
+		// TTQMM Ref: GameObjectJSON.ApplyValues(object instance, Type instanceType, JObject json, string Spacing)
+		// TTQMM Ref: GameObjectJSON.ApplyValue(object instance, Type instanceType, JProperty jsonProperty, string Spacing)
+		// I've embedded these two functions
+		public static object DeserializeJSONObject(object target, Type targetType, JObject jObject)
 		{
 			// Let's get reflective!
 			foreach (JProperty jProperty in jObject.Properties())
@@ -42,40 +46,66 @@ namespace CustomModules
 						name = split[1];
 					}
 
-					FieldInfo tField = componentType.GetField(name, bind);
-					PropertyInfo tProp = componentType.GetProperty(name, bind);
+					FieldInfo fieldInfo = targetType.GetField(name, bind);
+					PropertyInfo propertyInfo = targetType.GetProperty(name, bind);
 
-					bool tryFieldInstead = tProp == null;
-
-					if (tryFieldInstead && tField == null)
+					MemberInfo memberInfo = null;
+					Type memberType = null;
+					if (propertyInfo != null)
 					{
-						Debug.LogError($"!!! Property '{name}' does not exist in type '{componentType}'");
+						memberType = propertyInfo.PropertyType;
+						memberInfo = propertyInfo;
+					}
+					else if(fieldInfo != null)
+					{
+						memberType = fieldInfo.FieldType;
+						memberInfo = fieldInfo;
+					}
+					else
+					{
+						Debug.LogError($"[Nuterra] Property '{name}' does not exist in type '{targetType}'");
 						continue;
 					}
 
-					if (jProperty.Value is JObject jChild)
+					
+
+					// Switch on the type of JSON we are provided with
+					switch(jProperty.Value.Type)
 					{
-						SetJSONObject(jChild, target, wipe, instantiate, tField, tProp, tryFieldInstead);
-					}
-					else if (jProperty.Value is JArray jArray)
-					{
-						object sourceArray = Wipe ? null : (
-							tryFieldInstead ? tField.GetValue(instance) : (
-								tProp.CanRead ? tProp.GetValue(instance, null) : null));
-						var newArray = MakeJSONArray(sourceArray, tryFieldInstead ? tField.FieldType : tProp.PropertyType, jArray, Spacing, Wipe); // add Wipe param, copy custom names to inside new method
-						if (tryFieldInstead)
+						case JTokenType.Object:
 						{
-							tField.SetValue(instance, newArray);
+							// Handle objects in our large function, as they can mean new GameObjects, new Components, instantiators, duplicators, all sorts...
+							JObject jChild = jProperty.Value as JObject;
+
+							SetJSONObject(jChild, target, wipe, instantiate, memberInfo);
+							break;
 						}
-						else if (tProp.CanWrite)
+						case JTokenType.Array:
 						{
-							tProp.SetValue(instance, newArray, null);
+							// Handle arrays
+							JArray jArray = jProperty.Value as JArray;
+							object sourceArray = null;
+
+							if (!wipe)
+								sourceArray = memberInfo.GetValueOfField(target);
+
+							// Helper function to populate the array contents
+							object newArray = MakeJSONArray(sourceArray, memberInfo.GetFieldType(), jArray, wipe);
+
+							// Then set it back to the field / property
+							memberInfo.SetValueOfField(target, newArray);
+
+							break;
 						}
-						else throw new TargetException("Property is read-only!");
-					}
-					else if (jProperty.Value is JValue jValue)
-					{
-						SetJSONValue(jValue, jsonProperty, instance, tryFieldInstead, tField, tProp);
+						default:
+						{
+							// The leaf node, parse the value into place
+							if (jProperty.Value is JValue jValue)
+							{
+								DeserializeValueIntoTarget(target, memberInfo, jValue);
+							}
+							break;
+						}
 					}
 				}
 				catch (Exception e)
@@ -84,54 +114,64 @@ namespace CustomModules
 				}
 			}
 
+			return target;
 		}
 
-		private static void DeserializeGameObject(Transform root, Transform target, JObject jObject)
+		// TTQMM Ref: JsonToGameObject.CreateGameObject(JObject json, GameObject GameObjectToPopulate = null, string Spacing = "", Transform searchParent = null)
+		public static GameObject DeserializeIntoGameObject(JObject jObject, GameObject target)
 		{
-			foreach (KeyValuePair<string, JToken> kvp in jObject)
-			{
-				if (kvp.Value.Type != JTokenType.Object)
-				{
-					Debug.LogError($"Unexpected token type {kvp.Value.Type} for token {kvp.Key}");
-					continue;
-				}
+			if (target == null)
+				target = new GameObject("New Deserialized Object");
 
-				string[] split = kvp.Key.Split('|');
+			PushSearchTransform(target.transform);
+			GameObject result = DeserializeIntoGameObject_Internal(jObject, target);
+			PopSearchTransform();
+			return result;
+		}
+
+		// TTQMM Ref: JsonToGameObject.CreateGameObject_Internal(JObject json, GameObject GameObjectToPopulate, string Spacing, Component instantiated = null, Type instantiatedType = null)
+		private static GameObject DeserializeIntoGameObject_Internal(JObject jObject, GameObject target)
+		{
+			// Ensure we have a target object
+			if (target == null)
+				target = new GameObject("Deserialized Object");
+
+			// Then read each JSON property and act accordingly
+			foreach (JProperty jProperty in jObject.Properties())
+			{
+				string[] split = jProperty.Name.Split('|');
 				if (split.Length == 1) // "ModuleVision", "UnityEngine.Transform" etc.
 				{
 					// Format will be "{ComponentType} {Index}" where the index specifies the child index if there are multiple targets
-					string[] typeNameAndIndex = split[0].Split(' ');
-					if (typeNameAndIndex.Length == 0)
-						continue;
+					string typeNameAndIndex = split[0];
+					string typeName = typeNameAndIndex.Split(' ')[0];
+					Type type = TTReferences.GetType(typeName);
 
-					// See if we have an index
-					int index = 0;
-					if (typeNameAndIndex.Length >= 2)
-						int.TryParse(typeNameAndIndex[1], out index);
+					// See if we have an existing component
+					Component component = target.GetComponentWithIndex(typeNameAndIndex);
 
-					// Try and find our type
-					Type componentType = ReferenceFinder.GetType(typeNameAndIndex[0]);
-					if (componentType == null)
+					// A null JSON token means we should delete this object
+					if(jProperty.Type == JTokenType.Null)
 					{
-						Debug.LogError($"Could not find component type {typeNameAndIndex[0]}");
-						continue;
+						if(component != null)
+							Component.DestroyImmediate(component);
 					}
-
-					// See if we have an existing component. If not, make one
-					Component component = target.gameObject.GetComponent(componentType, index);
-					if (component == null)
+					else // We have some data, let's process it
 					{
-						component = target.gameObject.AddComponent(componentType);
-					}
+						// If we couldn't find the component, make a new one
+						if (component == null)
+							component = target.gameObject.AddComponent(type);
 
-					// If we still don't have one, exit
-					if (component == null)
-					{
-						Debug.LogError($"Could not relocate component {typeNameAndIndex[0]}");
-						continue;
-					}
+						// If we still don't have one, exit
+						if (component == null)
+						{
+							Debug.LogError($"Could not relocate component {typeNameAndIndex}");
+							continue;
+						}
 
-					DeserializeComponent(root, component, (JObject)kvp.Value);
+						// Now deserialize the JSON into the new Component
+						DeserializeJSONObject(component, type, jProperty.Value as JObject);
+					}
 				}
 				else if (split.Length == 2) //
 				{
@@ -140,33 +180,15 @@ namespace CustomModules
 
 					switch (split[0])
 					{
-						case "GameObject": // Create a new child object
+						case "Reference": // Copy a child object or component from another prefab
 						{
-							childObject = new GameObject(split[1]);
-							childObject.transform.SetParent(target);
-							childObject.transform.localPosition = Vector3.zero;
-							childObject.transform.localRotation = Quaternion.identity;
-							childObject.transform.localScale = Vector3.one;
-							break;
-						}
-						case "Reference": // Copy a child object from another prefab
-						{
-							if (ReferenceFinder.GetReferenceFromBlockResource(name, out object reference))
+							if (TTReferences.GetReferenceFromBlockResource(name, out object reference))
 							{
-								GameObject referenceObject = null;
-								if (reference is GameObject)
-									referenceObject = (GameObject)reference;
-								else if (reference is Transform)
-									referenceObject = ((Transform)reference).gameObject;
-								else if (reference is Component)
+								if (reference is GameObject || reference is Transform)
 								{
-									// TODO: line 644ish JsonToGameObject
-								}
-								else
-									Debug.LogError("Unknown object found as reference");
+									// If the reference was to a GameObject or a Transform, then we just want to copy that whole object
+									GameObject referenceObject = reference is GameObject ? (GameObject)reference : ((Transform)reference).gameObject;
 
-								if (referenceObject != null)
-								{
 									childObject = GameObject.Instantiate(referenceObject);
 									string newName = name;
 									int count = 1;
@@ -180,6 +202,22 @@ namespace CustomModules
 									childObject.transform.localRotation = referenceObject.transform.localRotation;
 									childObject.transform.localScale = referenceObject.transform.localScale;
 								}
+								else if (reference is Component)
+								{
+									// If we referenced a Component, we want to place a copy of that component on our target
+									// However, if we already have a Component of the same type, we most likely want to override its values. 
+									// This functionality is as per TTQMM
+									Type type = reference.GetType();
+									Component existingComponent = target.GetComponent(type);
+									if (existingComponent == null)
+										existingComponent = target.AddComponent(type);
+
+									// Copy the reference and then deserialize our JSON into it
+									ShallowCopy(type, reference, existingComponent, false);
+									DeserializeJSONObject(existingComponent, type, jProperty.Value as JObject);
+								}
+								else
+									Debug.LogError("Unknown object found as reference");
 							}
 							break;
 						}
@@ -187,36 +225,55 @@ namespace CustomModules
 						{
 							if (name.Contains('/') || name.Contains('.'))
 							{
-								var nGO = root.RecursiveFindWithProperties(name);
-								if (nGO != null)
+								object foundObject = GetCurrentSearchTransform().RecursiveFindWithProperties(name);
+								if (foundObject != null)
 								{
-									if (nGO is Component nGOc)
-										childObject = nGOc.gameObject;
-									else if (nGO is GameObject nGOg)
-										childObject = nGOg;
+									if (foundObject is Component foundComponent)
+										childObject = foundComponent.gameObject;
+									else if (foundObject is GameObject foundGameObject)
+										childObject = foundGameObject;
 								}
 							}
+
+							if (childObject == null)
+								childObject = target.transform.Find(name)?.gameObject;
+
+							// Fallback, just make an empty object
+							if (childObject == null)
+							{
+								childObject = new GameObject(name);
+								childObject.transform.parent = target.transform;
+							}
+
 							break;
 						}
+						case "GameObject": // Create a new child object
 						case "Instantiate": // Instantiate something
 						{
+							if (childObject == null)
+								childObject = target.transform.Find(name)?.gameObject;
+
+							// Fallback, just make an empty object
+							if (childObject == null)
+							{
+								childObject = new GameObject(name);
+								childObject.transform.parent = target.transform;
+							}
+
 							break;
 						}
 					}
 
-					// First fallback, try looking up the object by the full string
-					if (childObject == null)
-						childObject = target.transform.Find(name)?.gameObject;
 
-					// Final fallback, just make an empty object
-					if (childObject == null)
+					if(childObject != null) // Not sure if this should be else, see JsonToGameObject.cs:702
 					{
-						childObject = new GameObject(name);
-						childObject.transform.parent = target.transform;
-					}
-					else // Not sure if this should be else, see JsonToGameObject.cs:702
-					{
-						if (split[0] == "Duplicate")
+						// If we've got no JSON data, that means we want to delete this target
+						if(jProperty.Value.Type == JTokenType.Null)
+						{
+							GameObject.DestroyImmediate(childObject);
+							childObject = null;
+						}
+						else if (split[0] == "Duplicate")
 						{
 							childObject = GameObject.Instantiate(childObject);
 							name = name.Substring(1 + name.LastIndexOfAny(new char[] { '/', '.' }));
@@ -231,122 +288,313 @@ namespace CustomModules
 						}
 					}
 
-					if (kvp.Value.Type == JTokenType.Object)
-						DeserializeGameObject(root, childObject.transform, (JObject)kvp.Value);
+					if (childObject != null && jProperty.Type == JTokenType.Object)
+						DeserializeJSONObject(childObject, kTypeGameObject, (JObject)jProperty.Value);
 				}
+			}
+
+			return target;
+		}
+
+		// TTQMM Ref: JsonToGameObject.SetJSONValue(JValue jValue, JProperty jsonProperty, object _instance, bool UseField, FieldInfo tField = null, PropertyInfo tProp = null)
+		private static void DeserializeValueIntoTarget(object target, MemberInfo member, JValue jValue)
+		{
+			member.SetValueOfField(target, DeserializeValue(jValue, member.GetFieldType()));
+		}
+		private static object DeserializeValue(JValue jValue, Type type)
+		{
+			try // Try transforming to the target type
+			{
+				return jValue.ToObject(type);
+			}
+			catch // If we failed, we can try interpreting the jValue as a reference string
+			{
+				string referenceString = jValue.ToObject<string>();
+				// Trim anything before the |
+				string targetName = referenceString.Substring(referenceString.IndexOf('|') + 1);
+				// 
+				return DeserializeValueReference(targetName, referenceString, type);
 			}
 		}
 
-		private static void SetJSONObject(JObject jObject, object instance, string Spacing, bool Wipe, bool Instantiate, FieldInfo tField, PropertyInfo tProp, bool UseField)
+		// TTQMM Ref: JsonToGameObject.GetValueFromString
+		// This function is for setting a value based on a reference
+		public static object DeserializeValueReference(string search, string searchFull, Type outType)
 		{
-			if (UseField)
+			if (searchFull.StartsWith("Reference"))
 			{
-				object rewrite = SetJSONObject_Internal(jObject, Spacing, Wipe, Instantiate, Wipe ? null : tField.GetValue(instance), tField.FieldType, tField.Name);
-				try { tField.SetValue(instance, rewrite); } catch (Exception E) { Console.WriteLine(Spacing + m_tab + "!!!" + E.ToString()); }
+				if (TTReferences.GetReferenceFromBlockResource(search, out var result)) // Get value from a block in the game
+					return result;
+			}
+			else if (TTReferences.TryFind(search, null, outType, out object result))
+			{
+				return result; // Get value from a value in the user database
 			}
 			else
 			{
-				object rewrite = SetJSONObject_Internal(jObject, Spacing, Wipe, Instantiate, Wipe || !tProp.CanRead ? null : tProp.GetValue(instance, null), tProp.PropertyType, tProp.Name);
-				if (tProp.CanWrite)
-					try { tProp.SetValue(instance, rewrite, null); } catch (Exception E) { Console.WriteLine(Spacing + m_tab + "!!!" + E.ToString()); }
+				try
+				{
+					// Last fallback, we try searching our current working tree
+					var recursive = GetCurrentSearchTransform().RecursiveFindWithProperties(searchFull, GetRootSearchTransform());
+					if (recursive != null)
+						return recursive; // Get value from this block
+				}
+				catch
+				{ }
+			}
+			return null;
+		}
+
+		// TTQMM Ref JsonToGameObject.MakeJSONArray(object originalArray, Type ArrayType, JArray Deserialize, string Spacing, bool Wipe)
+		private static object MakeJSONArray(object originalArray, Type arrayType, JArray jArray, bool wipe)
+		{
+			IList newList;
+			IList sourceList = wipe ? null : originalArray as IList;
+
+			// If the target is a JToken array, then we are basically done
+			if (arrayType == kTypeJToken)
+				return jArray;
+
+			Type itemType;
+			if (arrayType.IsGenericType)
+				itemType = arrayType.GetGenericArguments()[0];
+			else
+				itemType = arrayType.GetElementType();
+
+			int count = jArray.Count;
+			try
+			{
+				// newCount here tells fixed arrays how many items to have. List<> arrays get starting capacity, but is empty.
+				newList = Activator.CreateInstance(arrayType, count) as IList;
+
+				// Must be a List<> then, which means it can be expanded with the following...
+				while (newList.Count < count)
+				{
+					object def = itemType.IsClass ? null : Activator.CreateInstance(itemType); // Get default (Avoid creation if not needed)
+					newList.Add(def); // Populate empty list from 0 to length
+				}
+
+				// Populate the list from our JSON
+				for (int i = 0; i < count; i++) 
+				{
+					// WP: Do not reference the original object! (Corruption risk)
+					object element = newList[i]; 
+
+					if (jArray[i] is JObject jObject)
+					{
+						// Make an element if we don't have one
+						if (element == null)
+						{
+							element = Activator.CreateInstance(itemType); // Create instance, because is needed
+							if (sourceList != null && sourceList.Count != 0) // Copy current or last element
+							{
+								ShallowCopy(itemType, sourceList[Math.Min(i, sourceList.Count - 1)], element, true); // WP: Helpful, trust me
+							}
+						}
+						// Then deserialize into that element
+						DeserializeJSONObject(element, itemType, jObject);
+					}
+					else if (jArray[i] is JArray jSubArray)
+					{
+						element = MakeJSONArray(element, itemType, jSubArray, false);
+					}
+					else if (jArray[i] is JValue jValue)
+					{
+						try
+						{
+							element = jValue.ToObject(itemType);
+						}
+						catch
+						{
+							string cache = jValue.ToObject<string>();
+							string targetName = cache.Substring(cache.IndexOf('|') + 1);
+							element = DeserializeValueReference(targetName, cache, itemType);
+						}
+					}
+					newList[i] = element;
+				}
+
+				return newList;
+			}
+			catch(Exception)
+			{
+				return null;
 			}
 		}
 
-		static Type[] ForceInstantiateObjectTypes = new Type[]
+		private static Type[] kForceInstantiateObjectTypes = new Type[]
 		{
 			typeof(TireProperties),
 			typeof(ManWheels.TireProperties)
 		};
 
-		private static object SetJSONObject_Internal(JObject jObject, string Spacing, bool Wipe, bool Instantiate, object original, Type type, string name)
+		// TODO: Do we have to have this??
+		private static Transform sCurrentSearchTransform = null;
+		private static Stack<Transform> sTransformSearchStack = new Stack<Transform>();
+		private static Transform GetRootSearchTransform() { return sTransformSearchStack.First(); }
+		private static Transform GetCurrentSearchTransform() { return sTransformSearchStack.Peek(); }
+		private static void PushSearchTransform(Transform t) { sTransformSearchStack.Push(t); }
+		private static void PopSearchTransform() { sTransformSearchStack.Pop(); }
+
+		// TTQMM Ref : GameObjectJSON.SetJSONObject(JObject jObject, object instance, string Spacing, bool Wipe, bool Instantiate, FieldInfo tField, PropertyInfo tProp, bool UseField)
+		private static void SetJSONObject(JObject jObject, object target, bool wipe, bool instantiate, MemberInfo memberInfo)
+		{
+			object originalObject = null;
+
+			if (!wipe)
+				originalObject = memberInfo.GetValueOfField(target);
+
+			object rewrittenObject = SetJSONObject_Internal(jObject, wipe, instantiate, originalObject, memberInfo.GetFieldType(), memberInfo.Name);
+
+			memberInfo.SetValueOfField(target, rewrittenObject);
+		}
+
+		// TTQMM Ref: GameObjectJSON.SetJSONObject_Internal(JObject jObject, string Spacing, bool Wipe, bool Instantiate, object original, Type type, string name)
+		private static object SetJSONObject_Internal(JObject jObject, bool wipe, bool instantiate, object original, Type originalType, string name)
 		{
 			object rewrite;
-			if (Wipe || original == null)
-			{
-				bool isGO = type.IsAssignableFrom(t_go);
-				if (isGO || type.IsAssignableFrom(t_tr)) // UnityEngine.Component (Module)
-				{
 
-					var oObj = (original as Component).gameObject;
-					//bool isActive = oObj.activeInHierarchy;//oObj.activeSelf;
-					var nObj = GameObject.Instantiate(oObj);
-					//if (Input.GetKey(KeyCode.Alpha9)) nObj.SetActive(true);
-					//else if (Input.GetKey(KeyCode.Alpha9)) nObj.SetActive(false);
-					//else 
-					nObj.SetActive(false);// isActive && !Input.GetKey(KeyCode.O));
-					nObj.transform.parent = oObj.transform.parent;
-					nObj.transform.position = Vector3.down * 25000f;
-					var cacheSearchTransform = SearchTransform;
-					CreateGameObject(jObject, nObj.gameObject, Spacing + m_tab + m_tab, firstSearchTransform);
-					SearchTransform = cacheSearchTransform;
-					if (Input.GetKey(KeyCode.LeftControl))
-					{
-						Console.WriteLine("Instantiating " + name + " : " + type.ToString());
-						Console.WriteLine(LogAllComponents(nObj.transform, false));//BlockLoader.AcceptOverwrite));
-					}
+			// First point of order, some types have to be instantiated
+			if (kForceInstantiateObjectTypes.Contains(originalType))
+				instantiate = true;
+
+			bool isGO = originalType.IsAssignableFrom(kTypeGameObject);
+			bool isTransform = originalType.IsAssignableFrom(kTypeTransform);
+			bool isComponent = originalType.IsSubclassOf(kTypeComponent);
+
+			// If wipe or we have nothing to start with
+			if (wipe || original == null)
+			{
+				if (isGO || isTransform) // UnityEngine.Component (Module)
+				{
+					// Instantiate the original object
+					GameObject originalObject = (original as Component).gameObject;
+					GameObject newObject = GameObject.Instantiate(originalObject);
+
+					// Initialise its transforms
+					newObject.SetActive(false);
+					newObject.transform.parent = originalObject.transform.parent;
+					newObject.transform.position = Vector3.down * 25000f; // What? Bye bye transform?!
+
+					DeserializeIntoGameObject(jObject, newObject.gameObject);
+					
 					if (isGO)
 					{
-						if (Wipe && original != null)
+						if (wipe && original != null)
 							GameObject.DestroyImmediate(original as GameObject);
-						rewrite = nObj;
+						rewrite = newObject;
 					}
 					else
 					{
-						if (Wipe && original != null)
+						if (wipe && original != null)
 							GameObject.DestroyImmediate(original as Transform);
-						rewrite = nObj.GetComponent(type);
+						rewrite = newObject.GetComponent(originalType);
 					}
 				}
-				else
+				else // Something other than a GameObject or Transform
 				{
-					original = Activator.CreateInstance(type);
-					rewrite = ApplyValues(original, type, jObject, Spacing + m_tab);
+					// Create an instance with new() and deserialize our JSON into it
+					original = Activator.CreateInstance(originalType);
+					rewrite = DeserializeJSONObject(original, originalType, jObject);
 				}
 			}
-			else
+			else // We are not wiping the source and we have a reference original
 			{
-				if (!Instantiate && !ForceInstantiateObjectTypes.Contains(type))
+				if (instantiate)
 				{
-					rewrite = ApplyValues(original, type, jObject, Spacing + m_tab);
-				}
-				else // Instantiate
-				{
-					bool isGO = type.IsAssignableFrom(t_go);
-					if (isGO || type.IsSubclassOf(t_comp)) // UnityEngine.Component (Module)
+					if (isGO || isComponent)
 					{
-						var oObj = (original as Component).gameObject;
-						//bool isActive = oObj.activeInHierarchy;//oObj.activeSelf;
-						var nObj = GameObject.Instantiate(oObj);
-						//if (Input.GetKey(KeyCode.Alpha9)) nObj.SetActive(true);
-						//else if (Input.GetKey(KeyCode.Alpha9)) nObj.SetActive(false);
-						//else 
-						nObj.SetActive(false);// isActive && !Input.GetKey(KeyCode.O));
-						nObj.transform.parent = oObj.transform.parent;
-						nObj.transform.position = Vector3.down * 25000f;
-						var cacheSearchTransform = SearchTransform;
-						CreateGameObject(jObject, nObj.gameObject, Spacing + m_tab + m_tab, firstSearchTransform);
-						SearchTransform = cacheSearchTransform;
-						if (Input.GetKey(KeyCode.LeftControl))
-						{
-							Console.WriteLine("Instantiating " + name + " : " + type.ToString());
-							Console.WriteLine(LogAllComponents(nObj.transform, false));//BlockLoader.AcceptOverwrite));
-						}
+						GameObject originalObject = (original as Component).gameObject;
+						GameObject newObject = GameObject.Instantiate(originalObject);
+	
+						newObject.SetActive(false);
+						newObject.transform.parent = originalObject.transform.parent;
+						newObject.transform.position = Vector3.down * 25000f;
+
+						DeserializeIntoGameObject(jObject, newObject.gameObject);
+
 						if (isGO)
-							rewrite = nObj;
+							rewrite = newObject;
 						else
-							rewrite = nObj.GetComponent(type);
+							rewrite = newObject.GetComponent(originalType);
 					}
-					else
+					else // Some data structure, not extending Component
 					{
-						object newObj = Activator.CreateInstance(type);
-						ShallowCopy(type, original, newObj, true);
-						rewrite = ApplyValues(newObj, type, jObject, Spacing + m_tab);
+						object newObj = Activator.CreateInstance(originalType);
+						ShallowCopy(originalType, original, newObj, true);
+						rewrite = DeserializeJSONObject(newObj, originalType, jObject);
 					}
+				}
+				else // !instantiate
+				{
+					rewrite = DeserializeJSONObject(original, originalType, jObject);
 				}
 			}
 
 			return rewrite;
 		}
-		*/
+
+		// -----------------------------------------------------------------------------------
+		#region Copy, Deserialize, Serialize Helpers
+		// -----------------------------------------------------------------------------------
+
+
+		public static void ShallowCopy(Type sharedType, object source, object target, bool declaredVarsOnly)
+		{
+			BindingFlags bf = BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic;
+			if (declaredVarsOnly)
+				bf |= BindingFlags.DeclaredOnly;
+			var fields = sharedType.GetFields(bf);
+			foreach (var field in fields)
+			{
+				try
+				{
+					field.SetValue(target, field.GetValue(source));
+				}
+				catch { }
+			}
+			var props = sharedType.GetProperties(bf);
+			foreach (var prop in props)
+			{
+				try
+				{
+					if (prop.CanRead && prop.CanWrite)
+						prop.SetValue(target, prop.GetValue(source), null);
+				}
+				catch { }
+			}
+		}
+
+		public static void ShallowCopy(Type sharedType, object source, object target, string[] filter)
+		{
+			var bf = BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic;
+			foreach (string search in filter)
+			{
+				var field = sharedType.GetField(search, bf);
+				if (field != null)
+				{
+					try
+					{
+						field.SetValue(target, field.GetValue(source));
+					}
+					catch { }
+				}
+				else
+				{
+					var prop = sharedType.GetProperty(search, bf);
+					if (prop != null)
+					{
+						try
+						{
+							if (prop.CanRead && prop.CanWrite)
+								prop.SetValue(target, prop.GetValue(source), null);
+						}
+						catch { }
+					}
+				}
+			}
+		}
+		#endregion
+		// -----------------------------------------------------------------------------------
 	}
 }
