@@ -110,6 +110,8 @@ namespace CustomModules
 				}
 				catch (Exception e)
 				{
+					Debug.LogError($"[Nuterra] Failed to deserialize Json object");
+					Debug.LogError(e.Message);
 					Debug.LogError(e.StackTrace);
 				}
 			}
@@ -142,35 +144,55 @@ namespace CustomModules
 				string[] split = jProperty.Name.Split('|');
 				if (split.Length == 1) // "ModuleVision", "UnityEngine.Transform" etc.
 				{
+					Debug.Log($"[Nuterra] Deserializer adding component {split[0]}");
+
 					// Format will be "{ComponentType} {Index}" where the index specifies the child index if there are multiple targets
 					string typeNameAndIndex = split[0];
 					string typeName = typeNameAndIndex.Split(' ')[0];
 					Type type = TTReferences.GetType(typeName);
 
-					// See if we have an existing component
-					Component component = target.GetComponentWithIndex(typeNameAndIndex);
-
-					// A null JSON token means we should delete this object
-					if(jProperty.Type == JTokenType.Null)
+					if (type != null)
 					{
-						if(component != null)
-							Component.DestroyImmediate(component);
-					}
-					else // We have some data, let's process it
-					{
-						// If we couldn't find the component, make a new one
-						if (component == null)
-							component = target.gameObject.AddComponent(type);
+						Debug.Log($"[Nuterra] Deserializer ready to find or create instance of type {type}");
 
-						// If we still don't have one, exit
-						if (component == null)
+						// See if we have an existing component
+						Component component = target.GetComponentWithIndex(typeNameAndIndex);
+
+						// A null JSON token means we should delete this object
+						if (jProperty.Value.Type == JTokenType.Null)
 						{
-							Debug.LogError($"Could not relocate component {typeNameAndIndex}");
-							continue;
+							if (component != null)
+								Component.DestroyImmediate(component);
+							else
+								Debug.LogError($"[Nuterra] Could not find component of type {typeNameAndIndex} to destroy");
 						}
+						else // We have some data, let's process it
+						{
+							// If we couldn't find the component, make a new one
+							if (component == null)
+								component = target.gameObject.AddComponent(type);
 
-						// Now deserialize the JSON into the new Component
-						DeserializeJSONObject(component, type, jProperty.Value as JObject);
+							// If we still can't find one, get it. This should like never happen, right?
+							if (component == null)
+							{
+								Debug.LogError($"[Nuterra] Failed to find {typeNameAndIndex}, failed to AddComponent, but trying GetComponent");
+								component = target.gameObject.GetComponent(type);
+							}
+
+							// If we still don't have one, exit
+							if (component == null)
+							{
+								Debug.LogError($"[Nuterra] Could not find component {typeNameAndIndex}");
+								continue;
+							}
+
+							// Now deserialize the JSON into the new Component
+							DeserializeJSONObject(component, type, jProperty.Value as JObject);
+						}
+					}
+					else
+					{
+						Debug.LogError($"[Nuterra] Could not find type {typeNameAndIndex}");
 					}
 				}
 				else if (split.Length == 2) //
@@ -182,15 +204,17 @@ namespace CustomModules
 					{
 						case "Reference": // Copy a child object or component from another prefab
 						{
+							Debug.Log($"[Nuterra] Deserializing Reference {name}");
 							if (TTReferences.GetReferenceFromBlockResource(name, out object reference))
 							{
+								Debug.Log($"[Nuterra] Found reference {reference}");
 								if (reference is GameObject || reference is Transform)
 								{
 									// If the reference was to a GameObject or a Transform, then we just want to copy that whole object
 									GameObject referenceObject = reference is GameObject ? (GameObject)reference : ((Transform)reference).gameObject;
 
 									childObject = GameObject.Instantiate(referenceObject);
-									string newName = name;
+									string newName = name.Substring(1 + name.LastIndexOfAny(new char[] { '/', '.' }));
 									int count = 1;
 									while (target.transform.Find(newName))
 									{
@@ -215,14 +239,24 @@ namespace CustomModules
 									// Copy the reference and then deserialize our JSON into it
 									ShallowCopy(type, reference, existingComponent, false);
 									DeserializeJSONObject(existingComponent, type, jProperty.Value as JObject);
+									continue;
 								}
 								else
-									Debug.LogError("Unknown object found as reference");
+								{
+									Debug.LogError($"[Nuterra] Unknown object {reference} found as reference");
+									continue;
+								}
+							}
+							else
+							{
+								Debug.LogError($"[Nuterra] Could not find reference for {name} in deserialization");
+								continue;
 							}
 							break;
 						}
 						case "Duplicate": // Copy a child object from this prefab
 						{
+							Debug.Log($"[Nuterra] Deserializing Duplicate {name}");
 							if (name.Contains('/') || name.Contains('.'))
 							{
 								object foundObject = GetCurrentSearchTransform().RecursiveFindWithProperties(name);
@@ -238,40 +272,43 @@ namespace CustomModules
 							if (childObject == null)
 								childObject = target.transform.Find(name)?.gameObject;
 
-							// Fallback, just make an empty object
-							if (childObject == null)
-							{
-								childObject = new GameObject(name);
-								childObject.transform.parent = target.transform;
-							}
-
 							break;
 						}
 						case "GameObject": // Create a new child object
 						case "Instantiate": // Instantiate something
+						default:
 						{
+							Debug.Log($"[Nuterra] Deserializing {split[0]}|{name}");
+
 							if (childObject == null)
 								childObject = target.transform.Find(name)?.gameObject;
-
-							// Fallback, just make an empty object
-							if (childObject == null)
-							{
-								childObject = new GameObject(name);
-								childObject.transform.parent = target.transform;
-							}
 
 							break;
 						}
 					}
 
-
-					if(childObject != null) // Not sure if this should be else, see JsonToGameObject.cs:702
+					// Fallback, just make an empty object
+					if (childObject == null)
+					{
+						if (jProperty.Value.Type == JTokenType.Null)
+						{
+							Debug.Log($"[Nuterra] Deserializing failed to find {name} to delete");
+							continue;
+						}
+						else
+						{
+							childObject = new GameObject(name);
+							childObject.transform.parent = target.transform;
+						}
+					}
+					else
 					{
 						// If we've got no JSON data, that means we want to delete this target
 						if(jProperty.Value.Type == JTokenType.Null)
 						{
 							GameObject.DestroyImmediate(childObject);
 							childObject = null;
+							continue;
 						}
 						else if (split[0] == "Duplicate")
 						{
@@ -285,11 +322,14 @@ namespace CustomModules
 							}
 							childObject.name = newName;
 							childObject.transform.parent = target.transform;
+							childObject.transform.localPosition = Vector3.zero;
+							childObject.transform.localRotation = Quaternion.identity;
+							childObject.transform.localScale = Vector3.one;
 						}
 					}
 
-					if (childObject != null && jProperty.Type == JTokenType.Object)
-						DeserializeJSONObject(childObject, kTypeGameObject, (JObject)jProperty.Value);
+					Debug.Log($"[Nuterra] Deserializing jProp {jProperty.Name} --- {jProperty.Value}");
+					DeserializeIntoGameObject_Internal((JObject)jProperty.Value, childObject);
 				}
 			}
 
@@ -452,7 +492,7 @@ namespace CustomModules
 		// TTQMM Ref: GameObjectJSON.SetJSONObject_Internal(JObject jObject, string Spacing, bool Wipe, bool Instantiate, object original, Type type, string name)
 		private static object SetJSONObject_Internal(JObject jObject, bool wipe, bool instantiate, object original, Type originalType, string name)
 		{
-			object rewrite;
+			object rewrite = null;
 
 			// First point of order, some types have to be instantiated
 			if (kForceInstantiateObjectTypes.Contains(originalType))
@@ -468,7 +508,11 @@ namespace CustomModules
 				if (isGO || isTransform) // UnityEngine.Component (Module)
 				{
 					// Instantiate the original object
-					GameObject originalObject = (original as Component).gameObject;
+					GameObject originalObject = null;
+					if (isGO)
+						originalObject = original as GameObject;
+					if(isTransform)
+						originalObject = (original as Transform).gameObject;
 					GameObject newObject = GameObject.Instantiate(originalObject);
 
 					// Initialise its transforms
@@ -487,15 +531,49 @@ namespace CustomModules
 					else
 					{
 						if (wipe && original != null)
-							GameObject.DestroyImmediate(original as Transform);
+							GameObject.DestroyImmediate(original as Component);
 						rewrite = newObject.GetComponent(originalType);
 					}
 				}
 				else // Something other than a GameObject or Transform
 				{
 					// Create an instance with new() and deserialize our JSON into it
-					original = Activator.CreateInstance(originalType);
-					rewrite = DeserializeJSONObject(original, originalType, jObject);
+					try
+					{
+						original = Activator.CreateInstance(originalType);
+					}
+					catch
+					{
+						// We can try seeing if our parameters fit any of the other constructors
+						foreach (ConstructorInfo constructor in originalType.GetConstructors())
+						{
+							try
+							{
+								// Look for constructors of that fit
+								ParameterInfo[] parameters = constructor.GetParameters();
+								object[] values = new object[parameters.Length];
+								for (int i = 0; i < parameters.Length; i++)
+								{
+									if (jObject.TryGetValue(parameters[i].Name, out JToken jValue))
+										values[i] = jValue.ToObject(parameters[i].ParameterType);
+									else if (parameters[i].HasDefaultValue)
+										values[i] = parameters[i].DefaultValue;
+									else
+										values[i] = null;
+								}
+								original = constructor.Invoke(values);
+								break;
+							}
+							catch
+							{
+								Debug.LogWarning($"[Nuterra] Failed to match constructor for {originalType}");
+							}
+						}
+					}
+					if (original != null)
+						rewrite = DeserializeJSONObject(original, originalType, jObject);
+					else
+						Debug.LogError($"[Nuterra] Failed to create instance of {originalType}");
 				}
 			}
 			else // We are not wiping the source and we have a reference original
@@ -520,9 +598,46 @@ namespace CustomModules
 					}
 					else // Some data structure, not extending Component
 					{
-						object newObj = Activator.CreateInstance(originalType);
+						object newObj = null;
+						try
+						{
+							newObj = Activator.CreateInstance(originalType);
+						}
+						catch
+						{
+							// We can try seeing if our parameters fit any of the other constructors
+							foreach (ConstructorInfo constructor in originalType.GetConstructors())
+							{
+								try
+								{
+									// Look for constructors of that fit
+									ParameterInfo[] parameters = constructor.GetParameters();
+									object[] values = new object[parameters.Length];
+									for (int i = 0; i < parameters.Length; i++)
+									{
+										if (jObject.TryGetValue(parameters[i].Name, out JToken jValue))
+											values[i] = jValue.ToObject(parameters[i].ParameterType);
+										else if (parameters[i].HasDefaultValue)
+											values[i] = parameters[i].DefaultValue;
+										else
+											values[i] = null;
+									}
+									original = constructor.Invoke(values);
+									break;
+								}
+								catch
+								{
+									Debug.LogWarning($"[Nuterra] Failed to match constructor for {originalType}");
+								}
+							}
+						}
+
 						ShallowCopy(originalType, original, newObj, true);
-						rewrite = DeserializeJSONObject(newObj, originalType, jObject);
+
+						if (newObj != null)
+							rewrite = DeserializeJSONObject(newObj, originalType, jObject);
+						else
+							Debug.LogError($"[Nuterra] Failed to create instance of {originalType}");
 					}
 				}
 				else // !instantiate

@@ -39,11 +39,11 @@ namespace CustomModules
 					{
 						if (go.GetComponent<TankBlock>())
 						{
-							sBlocksByName.Add(TrimForSafeSearch(go.name), go);
+							sBlocksByName[TrimForSafeSearch(go.name)] = go;
 							Visible v = go.GetComponent<Visible>();
 							if (v != null)
 							{
-								sBlocksByID.Add(v.ItemType, go);
+								sBlocksByID[v.ItemType] = go;
 							}
 						}
 					}
@@ -52,7 +52,7 @@ namespace CustomModules
 
 				foreach (Material mat in Resources.FindObjectsOfTypeAll<Material>())
 				{
-					sMaterials.Add(mat.name, mat);
+					sMaterials[mat.name] = mat;
 				}
 
 				foreach(Shader shader in Resources.FindObjectsOfTypeAll<Shader>())
@@ -111,7 +111,7 @@ namespace CustomModules
 		public static GameObject FindBlockByName(string name)
 		{
 			TryInit();
-			if(sBlocksByName.TryGetValue(name, out GameObject result))
+			if(sBlocksByName.TryGetValue(TrimForSafeSearch(name), out GameObject result))
 				return result;
 			return null;
 		}
