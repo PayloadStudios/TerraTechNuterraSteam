@@ -125,7 +125,7 @@ namespace CustomModules
 					propertyPath = propertyPath.Substring(reIndex);
 				}
 			}
-			catch (Exception E)
+			catch (Exception)
 			{
 				if (fallback != null && fallback != transform)
 					return fallback.RecursiveFindWithProperties(nameOfProperty);
