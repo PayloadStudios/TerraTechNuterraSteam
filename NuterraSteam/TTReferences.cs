@@ -153,7 +153,7 @@ namespace CustomModules
 				dictionary = new Dictionary<string, UnityEngine.Object>();
 				foreach (UnityEngine.Object t in Resources.FindObjectsOfTypeAll(type))
 				{
-					dictionary.Add(t.name, t);
+					dictionary[t.name] = t;
 				}
 				sObjectsByType.Add(type, dictionary);
 			}
@@ -192,7 +192,7 @@ namespace CustomModules
 				dictionary = new Dictionary<string, UnityEngine.Object>();
 				foreach (T t in Resources.FindObjectsOfTypeAll<T>())
 				{
-					dictionary.Add(t.name, t);
+					dictionary[t.name] = t;
 				}
 				sObjectsByType.Add(typeof(T), dictionary);
 			}

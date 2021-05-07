@@ -27,7 +27,7 @@ namespace CustomModules
 					ModContents mod = container != null ? container.Contents : null;
 					if (mod == null)
 					{
-						Debug.LogError("[Nuterra] Could not find mod that this unoffical block is part of");
+						Debug.LogError("[Nuterra] Could not find mod that this unoffical block is part of"); 
 						return false;
 					}
 
@@ -333,33 +333,28 @@ namespace CustomModules
 			bool supressBoxColliderFallback = TryParse(jData, "SupressBoxColliderFallback", TryParse(jData, "NoBoxCollider", false));
 			if (TryGetStringMultipleKeys(jData, out string meshName, "MeshName", "ModelName"))
 			{
-				UnityEngine.Object obj = mod.FindAsset(meshName);
-				if (obj != null)
+				foreach(UnityEngine.Object obj in mod.FindAllAssets(meshName))
 				{
-					if (obj is Mesh)
-						mesh = (Mesh)obj;
-					else if (obj is GameObject)
-						mesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
-					else
-						Debug.LogError($"[Nuterra] Found object of unknown type for mesh of name {meshName}");
+					if (obj != null)
+					{
+						if (obj is Mesh)
+							mesh = (Mesh)obj;
+						else if (obj is GameObject)
+							mesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
+					}
 				}
-				else
-					Debug.LogError($"[Nuterra] Failed to find mesh with name {meshName}");
+				Debug.Assert(mesh != null, $"[Nuterra] Failed to find mesh with name {meshName}");
 			}
 			if (TryGetStringMultipleKeys(jData, out string meshColliderName, "ColliderMeshName", "MeshColliderName"))
 			{
-				UnityEngine.Object obj = mod.FindAsset(meshColliderName);
-				if (obj != null)
+				foreach (UnityEngine.Object obj in mod.FindAllAssets(meshColliderName))
 				{
 					if (obj is Mesh)
 						colliderMesh = (Mesh)obj;
 					else if (obj is GameObject)
 						colliderMesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
-					else
-						Debug.LogError($"[Nuterra] Found object of unknown type for collision mesh of name {meshColliderName}");
 				}
-				else
-					Debug.LogError($"[Nuterra] Failed to find collision mesh with name {meshColliderName}");
+				Debug.Assert(colliderMesh != null, $"[Nuterra] Failed to find collider mesh with name {meshColliderName}");
 			}
 
 			// This is the only bit where the root object majorly differs from subobjects
@@ -599,15 +594,18 @@ namespace CustomModules
 		{
 			foreach (string arg in args)
 			{
-				if (jData.TryGetValue(arg, out JToken jToken) && jToken.Type == JTokenType.Float)
+				if (jData.TryGetValue(arg, out JToken jToken))
 				{
-					result = jToken.ToObject<float>();
-					return true;
-				}
-				else if(jToken.Type == JTokenType.Integer)
-				{
-					result = jToken.ToObject<int>();
-					return true;
+					if (jToken.Type == JTokenType.Float)
+					{
+						result = jToken.ToObject<float>();
+						return true;
+					}
+					else if (jToken.Type == JTokenType.Integer)
+					{
+						result = jToken.ToObject<int>();
+						return true;
+					}
 				}
 			}
 			result = defaultValue;
