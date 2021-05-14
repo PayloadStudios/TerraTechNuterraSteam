@@ -41,10 +41,48 @@ namespace CustomModules
 					def.m_Category = TryParseEnum(jData, "Category", def.m_Category);
 					def.m_Rarity = TryParseEnum(jData, "Rarity", def.m_Rarity);
 					def.m_Grade = TryParse(jData, "Grade", def.m_Grade);
-					def.m_Price = TryParseEnum(jData, "Price", def.m_Price);
-					// TODO: Recipe
+					
+					// Recipe
+					if(jData.TryGetValue("Recipe", out JToken jRecipe))
+                    {
+						RecipeTable.Recipe recipe = new RecipeTable.Recipe();
+						Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> dictionary = new Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec>();
+
+						int RecipePrice = 0;
+						if (jRecipe is JValue rString)
+						{
+							string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+							foreach (string item in recipeString)
+							{
+								RecipePrice += AppendToRecipe(dictionary, item, 1);
+							}
+						}
+						else if (jRecipe is JObject rObject)
+						{
+							foreach (var item in rObject)
+							{
+								RecipePrice += AppendToRecipe(dictionary, item.Key, item.Value.ToObject<int>());
+							}
+						}
+						else if (jRecipe is JArray rArray)
+						{
+							foreach (var item in rArray)
+							{
+								RecipePrice += AppendToRecipe(dictionary, item.ToString(), 1);
+							}
+						}
+
+						
+						recipe.m_InputItems = new RecipeTable.Recipe.ItemSpec[dictionary.Count];
+						dictionary.Values.CopyTo(recipe.m_InputItems, 0);
+						recipe.m_OutputItems[0] = new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Block, blockID), 1);
+						Singleton.Manager<RecipeManager>.inst.RegisterCustomBlockFabricatorRecipe(blockID, def.m_Corporation, recipe);
+
+						def.m_Price = RecipePrice;
+					}
 					// TODO: RecipeTable
 
+					def.m_Price = TryParseEnum(jData, "Price", def.m_Price);
 					def.m_MaxHealth = TryParse(jData, "HP", def.m_MaxHealth);
 
 					// ------------------------------------------------------
@@ -164,7 +202,33 @@ namespace CustomModules
 						block.filledCells = filledCells.ToArray();
 						Debug.Log("[Nuterra] Overwrote BlockExtents");
 					}
-					// TODO: CellMap / CellsMap
+					// CellMap / CellsMap
+					if(TryGetTokenMultipleKeys(jData, out JToken jCellMap, "CellMap", "CellsMap"))
+                    {
+						string[][] ZYXCells = jCellMap.ToObject<string[][]>();
+						List<IntVector3> cells = new List<IntVector3>();
+						for (int z = 0; z < ZYXCells.Length; z++)
+						{
+							string[] YXslice = ZYXCells[z];
+							if (YXslice == null)
+								continue;
+
+							for (int y = 0, ry = YXslice.Length - 1; ry >= 0; y++, ry--)
+							{
+								string Xline = YXslice[ry];
+								if (Xline == null)
+									continue;
+
+								for (int x = 0; x < Xline.Length; x++)
+								{
+									char cell = Xline[x];
+									if (cell != ' ')
+										cells.Add(new IntVector3(x, y, z));
+								}
+							}
+						}
+						block.filledCells = cells.ToArray();
+					}
 					// TODO: APsOnlyAtBottom / MakeAPsAtBottom
 					if (jData.TryGetValue("Cells", out JToken jCells) && jCells.Type == JTokenType.Array)
 					{
@@ -656,6 +720,34 @@ namespace CustomModules
 		public override string GetModuleKey()
 		{
 			return "NuterraBlock";
+		}
+
+		static int AppendToRecipe(Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> RecipeBuilder, string Type, int Count)
+		{
+			if (!Enum.TryParse(Type, true, out ChunkTypes chunk))
+			{
+				if (int.TryParse(Type, out int result))
+				{
+					chunk = (ChunkTypes)result;
+				}
+			}
+			if (chunk != ChunkTypes.Null)
+			{
+				if (!RecipeBuilder.ContainsKey(chunk))
+				{
+					RecipeBuilder.Add(chunk, new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Chunk, (int)chunk), 1));
+				}
+				else
+				{
+					RecipeBuilder[chunk].m_Quantity += Count;
+				}
+				return RecipeManager.inst.GetChunkPrice(chunk);
+			}
+			else
+			{
+				Console.WriteLine("No ChunkTypes found matching given name, nor could parse as ID (int): " + Type);
+			}
+			return 0;
 		}
 	}
 }
