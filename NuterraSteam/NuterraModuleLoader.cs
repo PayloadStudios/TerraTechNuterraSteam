@@ -97,7 +97,7 @@ namespace CustomModules
 						// This code block copies our chosen reference block
 						// TTQMM REF: BlockPrefabBuilder.Initialize
 
-						GameObject originalGameObject = TTReferences.FindBlockByName(referenceBlock);
+						GameObject originalGameObject = TTReferences.FindBlockFromString(referenceBlock);
 						if (originalGameObject != null)
 						{
 							GameObject newObject = UnityEngine.Object.Instantiate(originalGameObject);
