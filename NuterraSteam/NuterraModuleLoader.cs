@@ -291,9 +291,16 @@ namespace CustomModules
 					if (jData.TryGetValue("IconName", out JToken jIconName) && jIconName.Type == JTokenType.String)
 					{
 						UnityEngine.Object obj = mod.FindAsset(jIconName.ToString());
-						if (obj != null && obj is Sprite)
+						if (obj != null)
 						{
-							def.m_Icon = ((Sprite)obj).texture;
+							if (obj is Sprite sprite)
+								def.m_Icon = sprite.texture;
+							else if (obj is Texture2D texture)
+								def.m_Icon = texture;
+							else
+							{
+								Debug.LogWarning($"Found unknown object type {obj.GetType()} for icon override for {block.name}");
+							}
 						}
 					}
 
