@@ -38,7 +38,7 @@ namespace CustomModules
 					// Ignore block ID. Official loader handles IDs automatically.
 					// Ignore corporation. Custom corps no longer have a fixed ID, so we should use the official tool to set corp IDs.
 					//def.m_Corporation = TryParse(jData, "Corporation", def.m_Corporation);
-					def.m_Category = TryParseEnum(jData, "Category", def.m_Category);
+					block.m_BlockCategory = def.m_Category = TryParseEnum(jData, "Category", def.m_Category);
 					def.m_Rarity = TryParseEnum(jData, "Rarity", def.m_Rarity);
 					def.m_Grade = TryParse(jData, "Grade", def.m_Grade);
 					
