@@ -11,6 +11,54 @@ namespace CustomModules
 	{
 		private static Dictionary<string, Material> sMaterialCache = new Dictionary<string, Material>();
 
+		private RecipeTable.Recipe ParseRecipe(JObject jData, string corp, int blockID, out int RecipePrice)
+        {
+			RecipePrice = 0;
+			if (jData.TryGetValue("Recipe", out JToken jRecipe))
+			{
+				Debug.Log($"[Nuterra] Recipe detected: {jRecipe.ToString()}");
+
+				RecipeTable.Recipe recipe = new RecipeTable.Recipe();
+				Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> dictionary = new Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec>();
+
+				if (jRecipe is JValue rString)
+				{
+					string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+					Debug.Log($"[Nuterra] Adjusted Recipe Str: {recipeString}");
+					foreach (string item in recipeString)
+					{
+						RecipePrice += AppendToRecipe(dictionary, item, 1);
+					}
+				}
+				else if (jRecipe is JObject rObject)
+				{
+					foreach (var item in rObject)
+					{
+						RecipePrice += AppendToRecipe(dictionary, item.Key, item.Value.ToObject<int>());
+					}
+				}
+				else if (jRecipe is JArray rArray)
+				{
+					foreach (var item in rArray)
+					{
+						RecipePrice += AppendToRecipe(dictionary, item.ToString(), 1);
+					}
+				}
+
+				recipe.m_InputItems = new RecipeTable.Recipe.ItemSpec[dictionary.Count];
+				dictionary.Values.CopyTo(recipe.m_InputItems, 0);
+				recipe.m_OutputItems[0] = new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Block, blockID), 1);
+				Singleton.Manager<RecipeManager>.inst.RegisterCustomBlockFabricatorRecipe(blockID, corp, recipe);
+
+				return recipe;
+			}
+			else
+			{
+				Debug.Log("[Nuterra] No Recipe Found");
+			}
+			return null;
+		}
+
 		// This method should add a module to the TankBlock prefab
 		public override bool CreateModuleForBlock(int blockID, ModdedBlockDefinition def, TankBlock block, JToken jToken)
 		{
@@ -41,48 +89,19 @@ namespace CustomModules
 					block.m_BlockCategory = def.m_Category = TryParseEnum(jData, "Category", def.m_Category);
 					def.m_Rarity = TryParseEnum(jData, "Rarity", def.m_Rarity);
 					def.m_Grade = TryParse(jData, "Grade", def.m_Grade);
-					
+
 					// Recipe
-					if(jData.TryGetValue("Recipe", out JToken jRecipe))
-                    {
-						RecipeTable.Recipe recipe = new RecipeTable.Recipe();
-						Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> dictionary = new Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec>();
-
-						int RecipePrice = 0;
-						if (jRecipe is JValue rString)
-						{
-							string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-							foreach (string item in recipeString)
-							{
-								RecipePrice += AppendToRecipe(dictionary, item, 1);
-							}
-						}
-						else if (jRecipe is JObject rObject)
-						{
-							foreach (var item in rObject)
-							{
-								RecipePrice += AppendToRecipe(dictionary, item.Key, item.Value.ToObject<int>());
-							}
-						}
-						else if (jRecipe is JArray rArray)
-						{
-							foreach (var item in rArray)
-							{
-								RecipePrice += AppendToRecipe(dictionary, item.ToString(), 1);
-							}
-						}
-
-						
-						recipe.m_InputItems = new RecipeTable.Recipe.ItemSpec[dictionary.Count];
-						dictionary.Values.CopyTo(recipe.m_InputItems, 0);
-						recipe.m_OutputItems[0] = new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Block, blockID), 1);
-						Singleton.Manager<RecipeManager>.inst.RegisterCustomBlockFabricatorRecipe(blockID, def.m_Corporation, recipe);
-
-						def.m_Price = RecipePrice * 3;
+					ParseRecipe(jData, def.m_Corporation, blockID, out int RecipePrice);
+					def.m_Price = RecipePrice * 3;
+					int overridePrice = TryParse(jData, "Price", 0);
+					if (overridePrice > 0) {
+						Debug.Log($"[Nuterra] Read override price of {overridePrice}");
+						def.m_Price = overridePrice;
 					}
-					// TODO: RecipeTable
-
-					def.m_Price = TryParseEnum(jData, "Price", def.m_Price);
+					else
+                    {
+						Debug.Log($"[Nuterra] No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
+					}
 					def.m_MaxHealth = TryParse(jData, "HP", def.m_MaxHealth);
 
 					// ------------------------------------------------------
@@ -313,6 +332,13 @@ namespace CustomModules
 					// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
 					RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
 
+					// Forcibly reset ColliderSwapper so it gets recalculated correctly every time.
+					ColliderSwapper swapper = block.transform.GetComponentInChildren<ColliderSwapper>();
+					if (swapper != null)
+                    {
+						swapper.m_Colliders = null;
+                    }
+
 					// Weird export fix up for meshes
 					// Flip everything in x
 					foreach (MeshRenderer mr in block.GetComponentsInChildren<MeshRenderer>())
@@ -336,7 +362,23 @@ namespace CustomModules
 			}
 		}
 
-		private void RecursivelyAddSubObject(TankBlock block, ModContents mod, Transform targetTransform, JObject jData, Material defaultMaterial, bool isNewSubObject)
+        public override bool InjectBlock(int blockID, ModdedBlockDefinition def, JToken jToken)
+        {
+			JObject jData = (JObject)jToken;
+			RecipeTable.Recipe recipe = ParseRecipe(jData, def.m_Corporation, blockID, out int price);
+
+			if (recipe != null)
+			{
+				Singleton.Manager<RecipeManager>.inst.RegisterCustomBlockFabricatorRecipe(blockID, def.m_Corporation, recipe);
+			}
+			else
+			{
+				Debug.Log("[Nuterra] Unable to inject Recipe");
+			}
+			return base.InjectBlock(blockID, def, jToken);
+        }
+
+        private void RecursivelyAddSubObject(TankBlock block, ModContents mod, Transform targetTransform, JObject jData, Material defaultMaterial, bool isNewSubObject)
 		{
 			Debug.Log("[Nuterra] Called RecursivelyAddSubObject");
 
@@ -472,6 +514,7 @@ namespace CustomModules
 				bool makeBoxCollider = GetBoolMultipleKeys(jData, false, "MakeBoxCollider", "GenerateBoxCollider");
 				if(makeBoxCollider)
 				{
+					Debug.Log($"[Nuterra] Generating box collider for {block.name}");
 					BoxCollider bc = targetTransform.gameObject.EnsureComponent<BoxCollider>();
 					bc.sharedMaterial = physMat;
 					if (mesh != null)
@@ -490,6 +533,7 @@ namespace CustomModules
 				bool makeSphereCollider = TryParse(jData, "MakeSphereCollider", false);
 				if(makeSphereCollider)
 				{
+					Debug.Log($"[Nuterra] Generating sphere collider for {block.name}");
 					SphereCollider sc = targetTransform.gameObject.EnsureComponent<SphereCollider>();
 					sc.radius = 0.5f;
 					sc.center = Vector3.zero;
@@ -697,6 +741,15 @@ namespace CustomModules
 			return false;
 		}
 
+		private bool TryGetBool(JObject jData, bool defaultValue, string key)
+        {
+			if (jData.TryGetValue(key, out JToken jToken) && jToken.Type == JTokenType.Boolean)
+			{
+				return jToken.ToObject<bool>();
+			}
+			return defaultValue;
+		}
+
 		private bool GetBoolMultipleKeys(JObject jData, bool defaultValue, params string[] args)
 		{
 			foreach (string arg in args)
@@ -748,6 +801,7 @@ namespace CustomModules
 				{
 					RecipeBuilder[chunk].m_Quantity += Count;
 				}
+				Debug.Log($"[Nuterra] Chunk of type {chunk} added to recipe");
 				return RecipeManager.inst.GetChunkPrice(chunk);
 			}
 			else
