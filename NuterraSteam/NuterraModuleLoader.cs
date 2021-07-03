@@ -389,7 +389,8 @@ namespace CustomModules
 			bool hasAlbedo = TryGetStringMultipleKeys(jData, out string albedoName, "MeshTextureName", "TextureName");
 			bool hasGloss = TryGetStringMultipleKeys(jData, out string glossName, "MetallicTextureName", "GlossTextureName", "MeshGlossTextureName");
 			bool hasEmissive = TryGetStringMultipleKeys(jData, out string emissiveName, "EmissionTextureName", "MeshEmissionTextureName");
-			bool hasAnyOverrides = hasAlbedo || hasGloss || hasEmissive;
+			bool hasAnyOverrides = hasAlbedo || hasGloss || hasEmissive || hasMaterial;
+			bool isSubObject = targetTransform != block.transform;
 
 			// Calculate a unique string that defines this material
 			string compoundMaterialName = "";
@@ -408,12 +409,11 @@ namespace CustomModules
 					mat = existingMat;
 				else
 				{
-					
 					// Default to missing texture, then see if we have a base texture reference
 					mat = defaultMaterial;
 					if (hasMaterial)
 					{
-						string matName = materialName.Replace("Venture_", "VEN_").Replace("GeoCorp_", "GC_");
+						string matName = materialName.Replace("Venture_", "VEN_").Replace("GeoCorp_", "GC_").Replace("Hawkeye_", "HE_");
 						mat = TTReferences.FindMaterial(matName);
 					}
 
@@ -429,6 +429,7 @@ namespace CustomModules
 			else
 			{
 				// Actually, if we make no references, we can keep official modded block behaviour
+				// ^ That fails to hold if Material name is *NOT* set in root - results in White (null texture) block
 				mat = defaultMaterial;
 			}
 
@@ -471,7 +472,7 @@ namespace CustomModules
 			}
 
 			// This is the only bit where the root object majorly differs from subobjects
-			if (targetTransform == block.transform)
+			if (!isSubObject)
 			{
 				// Generally speaking, the root of a TT block does not have meshes, so needs to add a child
 				// Add mesh / collider mesh sub GameObject if we have either
