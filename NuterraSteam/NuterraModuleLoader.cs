@@ -78,7 +78,7 @@ namespace CustomModules
 						recipe.m_OutputItems[0] = new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Block, blockID), 1);
 						Singleton.Manager<RecipeManager>.inst.RegisterCustomBlockFabricatorRecipe(blockID, def.m_Corporation, recipe);
 
-						def.m_Price = RecipePrice;
+						def.m_Price = RecipePrice * 3;
 					}
 					// TODO: RecipeTable
 
