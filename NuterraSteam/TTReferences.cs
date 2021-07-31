@@ -11,8 +11,13 @@ namespace CustomModules
 	public static class TTReferences
 	{
 		private static bool sInited = false;
+
 		private static Dictionary<string, GameObject> sBlocksByName;
 		private static Dictionary<int, GameObject> sBlocksByID;
+
+		private static Dictionary<string, GameObject> originalBlocksByName;
+		private static Dictionary<int, GameObject> originalBlocksByID;
+
 		private static Dictionary<string, Material> sMaterials;
 		private static Dictionary<Type, Dictionary<string, UnityEngine.Object>> sObjectsByType;
 
@@ -22,12 +27,13 @@ namespace CustomModules
 			=> Value.Replace("(", "").Replace(")", "").Replace("_", "").Replace(" ", "").ToLower();
 
 
-		private static void TryInit()
+		public static void TryInit()
 		{
 			if (!sInited)
 			{
 				sInited = true;
-
+				originalBlocksByName = new Dictionary<string, GameObject>();
+				originalBlocksByID = new Dictionary<int, GameObject>();
 				sBlocksByName = new Dictionary<string, GameObject>();
 				sBlocksByID = new Dictionary<int, GameObject>();
 				sMaterials = new Dictionary<string, Material>();
@@ -39,11 +45,18 @@ namespace CustomModules
 					{
 						if (go.GetComponent<TankBlock>())
 						{
-							sBlocksByName[TrimForSafeSearch(go.name)] = go;
+							GameObject copy = GameObject.Instantiate(go);
+							copy.SetActive(false);
+
+							String name = TrimForSafeSearch(go.name);
+							sBlocksByName[name] = copy;
+							originalBlocksByName[name] = go;
+
 							Visible v = go.GetComponent<Visible>();
 							if (v != null)
 							{
-								sBlocksByID[v.ItemType] = go;
+								sBlocksByID[v.ItemType] = copy;
+								originalBlocksByID[v.ItemType] = go;
 							}
 						}
 					}
@@ -80,9 +93,9 @@ namespace CustomModules
 
 			GameObject refBlock;
 			if (int.TryParse(blockReferenceString, out int ID))
-				refBlock = FindBlockByID(ID);
+				refBlock = FindBlockReferenceByID(ID);
 			else
-				refBlock = FindBlockByName(blockReferenceString);
+				refBlock = FindBlockReferenceByName(blockReferenceString);
 
 			if (refBlock == null)
 			{
@@ -99,16 +112,40 @@ namespace CustomModules
 			return true;
 		}
 
-		// Will check block IDs first
-		public static GameObject FindBlockFromString(string input)
-		{
+		// Get original block for modification
+		public static GameObject FindOriginalBlockFromString(string input)
+        {
 			if (int.TryParse(input, out int id))
-				return FindBlockByID(id);
+				return FindOriginalBlockByID(id);
 			else
-				return FindBlockByName(input);
+				return FindOriginalBlockByName(input);
+		}
+		public static GameObject FindOriginalBlockByName(string name)
+        {
+			TryInit();
+			if (originalBlocksByName.TryGetValue(TrimForSafeSearch(name), out GameObject result))
+				return result;
+			return null;
+		}
+		public static GameObject FindOriginalBlockByID(int id)
+        {
+			TryInit();
+			if (originalBlocksByID.TryGetValue(id, out GameObject result))
+				return result;
+			return null;
 		}
 
-		public static GameObject FindBlockByName(string name)
+		// Get copy of the original block to modify - we don't want to modify the original block itself
+		// Will check block IDs first
+		public static GameObject FindBlockReferenceFromString(string input)
+		{
+			if (int.TryParse(input, out int id))
+				return FindBlockReferenceByID(id);
+			else
+				return FindBlockReferenceByName(input);
+		}
+
+		public static GameObject FindBlockReferenceByName(string name)
 		{
 			TryInit();
 			if(sBlocksByName.TryGetValue(TrimForSafeSearch(name), out GameObject result))
@@ -116,7 +153,7 @@ namespace CustomModules
 			return null;
 		}
 
-		public static GameObject FindBlockByID(int id)
+		public static GameObject FindBlockReferenceByID(int id)
 		{
 			TryInit();
 			if (sBlocksByID.TryGetValue(id, out GameObject result))

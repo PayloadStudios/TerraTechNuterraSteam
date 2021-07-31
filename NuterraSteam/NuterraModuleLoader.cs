@@ -78,12 +78,19 @@ namespace CustomModules
 						Debug.LogError("[Nuterra] Could not find mod that this unoffical block is part of"); 
 						return false;
 					}
-
 					// ------------------------------------------------------
 					// Basics like name, desc etc. The Official Mod Tool lets us set these already, but we might want to override
 					def.m_BlockDisplayName = TryParse(jData, "Name", def.m_BlockDisplayName);
 					def.m_BlockDescription = TryParse(jData, "Description", def.m_BlockDescription);
-					// Ignore block ID. Official loader handles IDs automatically.
+
+					// We get an ID for backwards compatibility
+					int legacyID = TryParse(jData, "ID", 0);
+					if (legacyID != 0)
+					{
+						Debug.Log(string.Format("[Nuterra] Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockID));
+						NuterraMod.legacyToSessionIds.Add(legacyID, blockID);
+					}
+
 					// Ignore corporation. Custom corps no longer have a fixed ID, so we should use the official tool to set corp IDs.
 					//def.m_Corporation = TryParse(jData, "Corporation", def.m_Corporation);
 					block.m_BlockCategory = def.m_Category = TryParseEnum(jData, "Category", def.m_Category);
@@ -116,7 +123,7 @@ namespace CustomModules
 						// This code block copies our chosen reference block
 						// TTQMM REF: BlockPrefabBuilder.Initialize
 
-						GameObject originalGameObject = TTReferences.FindBlockFromString(referenceBlock);
+						GameObject originalGameObject = TTReferences.FindBlockReferenceFromString(referenceBlock);
 						if (originalGameObject != null)
 						{
 							GameObject newObject = UnityEngine.Object.Instantiate(originalGameObject);
@@ -193,7 +200,7 @@ namespace CustomModules
 					#region Additional References
 					if (TryGetStringMultipleKeys(jData, out string referenceExplosion, "DeathExplosionReference", "ExplosionReference"))
 					{
-						GameObject refBlock = TTReferences.FindBlockFromString(referenceExplosion);
+						GameObject refBlock = TTReferences.FindBlockReferenceFromString(referenceExplosion);
 						if (refBlock != null)
 						{
 							moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
