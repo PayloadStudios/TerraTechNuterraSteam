@@ -1,10 +1,21 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Linq;
+
 
 namespace CustomModules
 {
     public class NuterraMod : ModBase
     {
         internal static Dictionary<int, int> legacyToSessionIds = new Dictionary<int, int>();
+        public int LoadOrder = 2;
+        internal static string TTSteamDir = Path.GetFullPath(Path.Combine(
+            AppDomain.CurrentDomain.GetAssemblies()
+            .Where(assembly => assembly.FullName.Contains("Assembly-CSharp.dll")).First().Location
+            .Replace("Assembly-CSharp.dll", ""), @"../../"
+        ));
 
         public bool TryGetSessionID(int legacyId, out int newId)
         {
@@ -28,6 +39,7 @@ namespace CustomModules
 
 		public override void DeInit()
 		{
+            legacyToSessionIds.Clear();
 		}
 	}
 }

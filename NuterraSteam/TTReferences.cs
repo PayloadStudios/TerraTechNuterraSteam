@@ -46,6 +46,7 @@ namespace CustomModules
 						if (go.GetComponent<TankBlock>())
 						{
 							GameObject copy = GameObject.Instantiate(go);
+							go.SetActive(false);
 							copy.SetActive(false);
 
 							String name = TrimForSafeSearch(go.name);
