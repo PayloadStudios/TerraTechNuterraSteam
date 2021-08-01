@@ -10,10 +10,10 @@ namespace CustomModules
     public class NuterraMod : ModBase
     {
         internal static Dictionary<int, int> legacyToSessionIds = new Dictionary<int, int>();
-        public int LoadOrder = 2;
+        public static int LoadOrder = 2;
         internal static string TTSteamDir = Path.GetFullPath(Path.Combine(
             AppDomain.CurrentDomain.GetAssemblies()
-            .Where(assembly => assembly.FullName.Contains("Assembly-CSharp.dll")).First().Location
+            .Where(assembly => assembly.GetName().Name == "Assembly-CSharp").First().Location
             .Replace("Assembly-CSharp.dll", ""), @"../../"
         ));
 
