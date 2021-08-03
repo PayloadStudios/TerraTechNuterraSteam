@@ -421,7 +421,8 @@ namespace CustomModules
 						// We're duplicating this
 						else if (Duplicate)
 						{
-							childObject = GameObject.Instantiate(childObject);
+							GameObject original = childObject;
+							childObject = GameObject.Instantiate(original);
 							name = name.Substring(name.LastIndexOfAny(new char[] { '/', '.' }) + 1);
 							string newName = $"{name}_copy";
 							int count = 1;
@@ -431,9 +432,9 @@ namespace CustomModules
 							}
 							childObject.name = newName;
 							childObject.transform.parent = target.transform;
-							childObject.transform.localPosition = Vector3.zero;
-							childObject.transform.localRotation = Quaternion.identity;
-							childObject.transform.localScale = Vector3.one;
+							childObject.transform.localPosition = original.transform.localPosition;
+							childObject.transform.localRotation = original.transform.localRotation;
+							childObject.transform.localScale = original.transform.localScale;
 						}
 					}
 
