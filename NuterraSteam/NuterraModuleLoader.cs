@@ -170,12 +170,21 @@ namespace CustomModules
 
 								foreach (Transform child in newObject.transform)
 								{
-									if (hasRefOffset)
-										child.localPosition += offset;
-									if (hasRefRotation)
-										child.localEulerAngles += euler;
 									if (hasRefScale)
-										child.localScale += scale;
+									{
+										child.localScale = Vector3.Scale(child.localScale, scale);
+										child.localPosition = Vector3.Scale(child.localPosition, scale);
+									}
+
+									if (hasRefOffset)
+									{
+										child.localPosition += offset;
+									}
+
+									if (hasRefRotation)
+									{
+										child.localEulerAngles = euler;
+									}
 								}
 							}
 						}
@@ -659,73 +668,76 @@ namespace CustomModules
 					if (token.Type == JTokenType.Object)
 					{
 						JObject jSubObject = (JObject)token;
+						GameObject subObject;
 						if (TryGetStringMultipleKeys(jSubObject, out string subObjName, "SubOverrideName", "OverrideName", "ObjectName"))
 						{
-							GameObject subObject = (targetTransform.RecursiveFindWithProperties(subObjName) as Component)?.gameObject;
-							bool creatingNew = subObject == null;
-							if (subObject != null)
-							{
-								if (TryGetTokenMultipleKeys(jSubObject, out JToken jLayer, "Layer", "PhysicsLayer") && jLayer.Type == JTokenType.Integer)
-									subObject.layer = jLayer.ToObject<int>();
-							}
-							else // Reference was not matched, so we want to add a new subobject
-							{
-								if (subObjName.NullOrEmpty())
-									subObjName = $"SubObject_{targetTransform.childCount + 1}";
-
-								subObject = new GameObject(subObjName);
-								subObject.transform.parent = targetTransform;
-								subObject.transform.localPosition = Vector3.zero;
-								subObject.transform.localRotation = Quaternion.identity;
-
-								if (TryGetTokenMultipleKeys(jSubObject, out JToken jLayer, "Layer", "PhysicsLayer") && jLayer.Type == JTokenType.Integer)
-									subObject.layer = jLayer.ToObject<int>();
-								else
-									subObject.layer = 8; // Globals.inst.layerTank;
-							}
-
-							// Target acquired, lets tweak a few things
-							bool destroyColliders = GetBoolMultipleKeys(jSubObject, false, "DestroyExistingColliders", "DestroyColliders");
-							if (destroyColliders)
-							{
-								foreach (Collider col in subObject.GetComponents<Collider>())
-									UnityEngine.Object.DestroyImmediate(col);
-
-								UnityEngine.Object.DestroyImmediate(subObject.GetComponentInParents<ColliderSwapper>());
-							}
-
-							bool destroyRenderers = GetBoolMultipleKeys(jSubObject, false, "DestroyExistingRenderer", "DestroyExistingRenderers", "DestroyRenderers");
-							if (destroyRenderers)
-							{
-								foreach (Renderer renderer in subObject.GetComponents<Renderer>())
-									UnityEngine.Object.DestroyImmediate(renderer);
-								foreach (MeshFilter mf in subObject.GetComponents<MeshFilter>())
-									UnityEngine.Object.DestroyImmediate(mf);
-							}
-
-							// If there is already a material set on this sub object ref, use it
-							Material matForSubObject = mat;
-							if (!creatingNew && !destroyRenderers)
-							{
-								Renderer ren = subObject.GetComponent<Renderer>();
-								if (ren)
-									matForSubObject = ren.sharedMaterial;
-							}
-
-							// Optional resize settings
-							if (TryGetTokenMultipleKeys(jSubObject, out JToken jPos, "SubPosition", "Position") && jPos.Type == JTokenType.Object)
-								subObject.transform.localPosition = GetVector3(jPos);
-							if (TryGetTokenMultipleKeys(jSubObject, out JToken jEuler, "SubRotation", "Rotation") && jEuler.Type == JTokenType.Object)
-								subObject.transform.localEulerAngles = GetVector3(jEuler);
-							if (TryGetTokenMultipleKeys(jSubObject, out JToken jScale, "SubScale", "Scale") && jScale.Type == JTokenType.Object)
-								subObject.transform.localScale = GetVector3(jScale);
-
-							RecursivelyAddSubObject(block, mod, subObject.transform, jSubObject, matForSubObject, creatingNew);
+							subObject = (targetTransform.RecursiveFindWithProperties(subObjName) as Component)?.gameObject;
 						}
 						else
 						{
-							Debug.LogError($"[Nuterra] Failed to find SubOverrideName tag in sub object JSON");
+							Debug.LogError($"[Nuterra] Failed to find SubOverrideName tag in sub object JSON - assuming default transform");
+							subObject = targetTransform.gameObject;
 						}
+
+						bool creatingNew = subObject == null;
+						if (subObject != null)
+						{
+							if (TryGetTokenMultipleKeys(jSubObject, out JToken jLayer, "Layer", "PhysicsLayer") && jLayer.Type == JTokenType.Integer)
+								subObject.layer = jLayer.ToObject<int>();
+						}
+						else // Reference was not matched, so we want to add a new subobject
+						{
+							if (subObjName.NullOrEmpty())
+								subObjName = $"SubObject_{targetTransform.childCount + 1}";
+
+							subObject = new GameObject(subObjName);
+							subObject.transform.parent = targetTransform;
+							subObject.transform.localPosition = Vector3.zero;
+							subObject.transform.localRotation = Quaternion.identity;
+
+							if (TryGetTokenMultipleKeys(jSubObject, out JToken jLayer, "Layer", "PhysicsLayer") && jLayer.Type == JTokenType.Integer)
+								subObject.layer = jLayer.ToObject<int>();
+							else
+								subObject.layer = 8; // Globals.inst.layerTank;
+						}
+
+						// Target acquired, lets tweak a few things
+						bool destroyColliders = GetBoolMultipleKeys(jSubObject, false, "DestroyExistingColliders", "DestroyColliders");
+						if (destroyColliders)
+						{
+							foreach (Collider col in subObject.GetComponents<Collider>())
+								UnityEngine.Object.DestroyImmediate(col);
+
+							UnityEngine.Object.DestroyImmediate(subObject.GetComponentInParents<ColliderSwapper>());
+						}
+
+						bool destroyRenderers = GetBoolMultipleKeys(jSubObject, false, "DestroyExistingRenderer", "DestroyExistingRenderers", "DestroyRenderers");
+						if (destroyRenderers)
+						{
+							foreach (Renderer renderer in subObject.GetComponents<Renderer>())
+								UnityEngine.Object.DestroyImmediate(renderer);
+							foreach (MeshFilter mf in subObject.GetComponents<MeshFilter>())
+								UnityEngine.Object.DestroyImmediate(mf);
+						}
+
+						// If there is already a material set on this sub object ref, use it
+						Material matForSubObject = mat;
+						if (!creatingNew && !destroyRenderers)
+						{
+							Renderer ren = subObject.GetComponent<Renderer>();
+							if (ren)
+								matForSubObject = ren.sharedMaterial;
+						}
+
+						// Optional resize settings
+						if (TryGetTokenMultipleKeys(jSubObject, out JToken jPos, "SubPosition", "Position") && jPos.Type == JTokenType.Object)
+							subObject.transform.localPosition = GetVector3(jPos);
+						if (TryGetTokenMultipleKeys(jSubObject, out JToken jEuler, "SubRotation", "Rotation") && jEuler.Type == JTokenType.Object)
+							subObject.transform.localEulerAngles = GetVector3(jEuler);
+						if (TryGetTokenMultipleKeys(jSubObject, out JToken jScale, "SubScale", "Scale") && jScale.Type == JTokenType.Object)
+							subObject.transform.localScale = GetVector3(jScale);
+
+						RecursivelyAddSubObject(block, mod, subObject.transform, jSubObject, matForSubObject, creatingNew);
 					}
 				}
 			}
