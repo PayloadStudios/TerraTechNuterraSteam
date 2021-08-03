@@ -419,10 +419,10 @@ namespace CustomModules
 						}
 
 						// We're duplicating this
-						else if (split[0] == "Duplicate")
+						else if (Duplicate)
 						{
 							childObject = GameObject.Instantiate(childObject);
-							name = name.Substring(name.LastIndexOfAny(new char[] { '/', '.' }));
+							name = name.Substring(name.LastIndexOfAny(new char[] { '/', '.' }) + 1);
 							string newName = $"{name}_copy";
 							int count = 1;
 							while (target.transform.Find(newName))

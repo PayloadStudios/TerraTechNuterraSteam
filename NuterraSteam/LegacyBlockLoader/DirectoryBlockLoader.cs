@@ -253,6 +253,22 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
 
         public static void RegisterAssets(ModContainer container)
         {
+            // Assert block id uniqueness:
+            Dictionary<string, UnofficialBlock> definitionMap = new Dictionary<string, UnofficialBlock>();
+            foreach (KeyValuePair<int, UnofficialBlock> pair in LegacyBlocks)
+            {
+                string blockID = ModUtils.CreateCompoundId("NuterraSteam", pair.Value.blockDefinition.name);
+                int version = 0;
+                while (definitionMap.ContainsKey(blockID + (version > 0 ? "_" + version.ToString() : "")))
+                {
+                    version++;
+                }
+                blockID += (version > 0 ? "_" + version.ToString() : "");
+                pair.Value.blockDefinition.name = ModUtils.GetAssetFromCompoundId(blockID);
+                Console.WriteLine($"Reassigned block {pair.Value.blockDefinition.m_BlockDisplayName} ({pair.Key}) to unique ID {blockID}");
+                definitionMap.Add(blockID, pair.Value);
+            }
+
             // Add ModDefinitions as Moddedassets
             foreach (UnofficialBlock block in LegacyBlocks.Values)
             {
@@ -282,16 +298,9 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
                 else
                 {
                     string blockID = ModUtils.CreateCompoundId("NuterraSteam", pair.Value.blockDefinition.name);
-                    int version = 0;
-                    while (definitionMap.ContainsKey(blockID + (version > 0 ? "_" + version.ToString(): "")))
-                    {
-                        version++;
-                    }
-                    blockID += (version > 0 ? "_" + version.ToString() : "");
-                    pair.Value.blockDefinition.name = ModUtils.GetAssetFromCompoundId(blockID);
-                    Console.WriteLine($"Marking Block {pair.Value.blockDefinition.m_BlockDisplayName} [{blockID}] ({pair.Key}) for injection");
-                    blocksToAssign.Add(blockID);
                     definitionMap.Add(blockID, pair.Value);
+                    blocksToAssign.Add(blockID);
+                    Console.WriteLine($"Marking Block {pair.Value.blockDefinition.m_BlockDisplayName} [{blockID}] ({pair.Key}) for injection");
                 }
             }
             /* 
