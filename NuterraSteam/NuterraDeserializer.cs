@@ -207,7 +207,15 @@ namespace CustomModules
 			foreach (JProperty jProperty in jObject.Properties())
 			{
 				string[] split = jProperty.Name.Split('|');
-				if (split.Length == 1) // "ModuleVision", "UnityEngine.Transform" etc.
+				string mode = split[0];
+
+				bool Duplicate = jProperty.Name.StartsWith("Duplicate");
+				bool Reference = jProperty.Name.StartsWith("Reference");
+				bool IsGameObject = jProperty.Name.StartsWith("GameObject") || jProperty.Name.StartsWith("UnityEngine.GameObject");
+
+				bool ForgivenessOverride = Duplicate || Reference || IsGameObject;
+
+				if (!ForgivenessOverride && split.Length == 1) // "ModuleVision", "UnityEngine.Transform" etc.
 				{
 					Debug.Log($"[Nuterra - {DeserializingBlock}] Deserializer adding component {split[0]}");
 
@@ -263,12 +271,36 @@ namespace CustomModules
 						Debug.LogError($"[Nuterra - {DeserializingBlock}] Could not find type {typeNameAndIndex}");
 					}
 				}
-				else if (split.Length == 2) //
+				else if (ForgivenessOverride || split.Length == 2) //
 				{
 					GameObject childObject = null;
-					string name = split[1];
+					string name;
+					if (split.Length == 2)
+					{
+						name = split[1];
+					}
+					else
+					{
+						if (Duplicate)
+						{
+							mode = "Duplicate";
+						}
+						else if (Reference)
+						{
+							mode = "Reference";
+						}
+						else if (jProperty.Name.StartsWith("GameObject"))
+						{
+							mode = "GameObject";
+						}
+						else
+						{
+							mode = "UnityEngine.GameObject";
+						}
+						name = jProperty.Name.Substring(mode.Length + 1);
+					}
 
-					switch (split[0])
+					switch (mode)
 					{
 						case "Reference": // Copy a child object or component from another prefab
 						{
@@ -345,6 +377,7 @@ namespace CustomModules
 
 							break;
 						}
+						case "UnityEngine.GameObject":
 						case "GameObject": // Create a new child object
 						case "Instantiate": // Instantiate something
 						default:
@@ -389,7 +422,7 @@ namespace CustomModules
 						else if (split[0] == "Duplicate")
 						{
 							childObject = GameObject.Instantiate(childObject);
-							name = name.Substring(1 + name.LastIndexOfAny(new char[] { '/', '.' }));
+							name = name.Substring(name.LastIndexOfAny(new char[] { '/', '.' }));
 							string newName = $"{name}_copy";
 							int count = 1;
 							while (target.transform.Find(newName))
