@@ -243,7 +243,10 @@ namespace CustomModules
 						{
 							// If we couldn't find the component, make a new one
 							if (component == null)
+							{
+								Debug.LogError($"[Nuterra - {DeserializingBlock}] Failed to find component on target");
 								component = target.gameObject.AddComponent(type);
+							}
 
 							// If we still can't find one, get it. This should like never happen, right?
 							if (component == null)
@@ -432,9 +435,6 @@ namespace CustomModules
 							}
 							childObject.name = newName;
 							childObject.transform.parent = target.transform;
-							childObject.transform.localPosition = original.transform.localPosition;
-							childObject.transform.localRotation = original.transform.localRotation;
-							childObject.transform.localScale = original.transform.localScale;
 						}
 					}
 
