@@ -25,6 +25,10 @@ namespace CustomModules
 			{ TrimForSafeSearch("GSO_Shield_111"), TrimForSafeSearch("GSO_Shield_Bubble_111") }
 		};
 
+		private static readonly Dictionary<string, string> materialRenames = new Dictionary<string, string> {
+			{ "Sparks", "Mat_FX_Sparks" }
+		};
+
 		public static Material kMissingTextureTankBlock;
 
 		private static string TrimForSafeSearch(string Value) 
@@ -71,6 +75,7 @@ namespace CustomModules
 				foreach (Material mat in Resources.FindObjectsOfTypeAll<Material>())
 				{
 					sMaterials[mat.name] = mat;
+					Console.WriteLine("[Nuterra] Regitering MATERIAL " + mat.name);
 				}
 
 				foreach(Shader shader in Resources.FindObjectsOfTypeAll<Shader>())
@@ -199,8 +204,14 @@ namespace CustomModules
 		public static Material FindMaterial(string name)
 		{
 			TryInit();
+			if (materialRenames.TryGetValue(name, out string currentName))
+            {
+				name = currentName;
+            }
 			if (sMaterials.TryGetValue(name, out Material result))
+			{
 				return result;
+			}
 
 			Console.WriteLine($"[Nuterra] FAILED to find material with name " + name);
 			return null;

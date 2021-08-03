@@ -227,30 +227,12 @@ namespace CustomModules
 					Debug.Log("[Nuterra] Handling block cells");
 					// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
 					bool usedBlockExtents = false;
+					bool cellsProcessed = false;
 					IntVector3 size = new IntVector3();
-					if (jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
-					{
-						List<IntVector3> filledCells = new List<IntVector3>();
-						int x = ((JObject)jExtents).GetValue("x").ToObject<int>();
-						int y = ((JObject)jExtents).GetValue("y").ToObject<int>();
-						int z = ((JObject)jExtents).GetValue("z").ToObject<int>();
-						size.x = x;
-						size.y = y;
-						size.z = z;
 
-						for (int i = 0; i < x; i++)
-							for (int j = 0; j < y; j++)
-								for (int k = 0; k < z; k++)
-								{
-									filledCells.Add(new IntVector3(i, j, k));
-								}
-						block.filledCells = filledCells.ToArray();
-						usedBlockExtents = true;
-						Debug.Log("[Nuterra] Overwrote BlockExtents");
-					}
 					// CellMap / CellsMap
-					if(TryGetTokenMultipleKeys(jData, out JToken jCellMap, "CellMap", "CellsMap"))
-                    {
+					if (TryGetTokenMultipleKeys(jData, out JToken jCellMap, "CellMap", "CellsMap"))
+					{
 						string[][] ZYXCells = jCellMap.ToObject<string[][]>();
 						List<IntVector3> cells = new List<IntVector3>();
 						for (int z = 0; z < ZYXCells.Length; z++)
@@ -277,10 +259,12 @@ namespace CustomModules
 						{
 							block.filledCells = cells.ToArray();
 							usedBlockExtents = false;
+							cellsProcessed = true;
 						}
 					}
+
 					// old cells
-					if (jData.TryGetValue("Cells", out JToken jCells) && jCells.Type == JTokenType.Array)
+					if (!cellsProcessed && jData.TryGetValue("Cells", out JToken jCells) && jCells.Type == JTokenType.Array)
 					{
 						List<IntVector3> filledCells = new List<IntVector3>();
 						foreach (JObject jCell in (JArray)jCells)
@@ -291,9 +275,32 @@ namespace CustomModules
 						{
 							block.filledCells = filledCells.ToArray();
 							usedBlockExtents = false;
+							cellsProcessed = true;
 						}
 					}
 
+					if (!cellsProcessed && jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
+					{
+						List<IntVector3> filledCells = new List<IntVector3>();
+						int x = ((JObject)jExtents).GetValue("x").ToObject<int>();
+						int y = ((JObject)jExtents).GetValue("y").ToObject<int>();
+						int z = ((JObject)jExtents).GetValue("z").ToObject<int>();
+						size.x = x;
+						size.y = y;
+						size.z = z;
+
+						for (int i = 0; i < x; i++)
+							for (int j = 0; j < y; j++)
+								for (int k = 0; k < z; k++)
+								{
+									filledCells.Add(new IntVector3(i, j, k));
+								}
+						block.filledCells = filledCells.ToArray();
+						usedBlockExtents = true;
+						Debug.Log("[Nuterra] Overwrote BlockExtents");
+					}
+					
+					
 					// Handle failure to get cells
 					if (block.filledCells == null || block.filledCells.Length == 0)
                     {

@@ -58,6 +58,7 @@ namespace CustomModules
 					{
 						memberType = propertyInfo.PropertyType;
 						memberInfo = propertyInfo;
+						
 					}
 					else if(fieldInfo != null)
 					{
@@ -134,41 +135,66 @@ namespace CustomModules
 						}
                     }
 
+					bool isIterable = memberType.IsArray || (memberType.IsGenericType && typeof(IEnumerable<>).IsAssignableFrom(memberType.GetGenericTypeDefinition()));
+					bool isDictionary = memberType.IsGenericType && typeof(IDictionary<,>).IsAssignableFrom(memberType.GetGenericTypeDefinition());
+
 					// Switch on the type of JSON we are provided with
 					switch (jProperty.Value.Type)
 					{
 						case JTokenType.Object:
 						{
 							// Handle objects in our large function, as they can mean new GameObjects, new Components, instantiators, duplicators, all sorts...
-							JObject jChild = jProperty.Value as JObject;
-
-							SetJSONObject(jChild, target, wipe, instantiate, memberInfo);
+							if (isDictionary || !isIterable) {
+								JObject jChild = jProperty.Value as JObject;
+								SetJSONObject(jChild, target, wipe, instantiate, memberInfo);
+							}
+							else
+                            {
+								throw new Exception("Trying to deserialize an object into an iterable type!");
+                            }
 							break;
 						}
 						case JTokenType.Array:
 						{
 							// Handle arrays
-							JArray jArray = jProperty.Value as JArray;
-							object sourceArray = null;
+							if (isIterable)
+							{
+								JArray jArray = jProperty.Value as JArray;
+								object sourceArray = null;
 
-							if (!wipe)
-								sourceArray = memberInfo.GetValueOfField(target);
+								if (!wipe)
+									sourceArray = memberInfo.GetValueOfField(target);
 
-							// Helper function to populate the array contents
-							object newArray = MakeJSONArray(sourceArray, memberInfo.GetFieldType(), jArray, wipe);
+								// Helper function to populate the array contents
+								object newArray = MakeJSONArray(sourceArray, memberInfo.GetFieldType(), jArray, wipe);
 
-							// Then set it back to the field / property
-							memberInfo.SetValueOfField(target, newArray);
+								// Then set it back to the field / property
+								memberInfo.SetValueOfField(target, newArray);
+							}
+							else
+                            {
+								throw new Exception("Trying to deserialize an array into a NON-iterable type!");
+							}
 
 							break;
 						}
 						default:
 						{
 							// The leaf node, parse the value into place
-							if (jProperty.Value is JValue jValue)
-							{
+							if (!isIterable && !isDictionary) {
+								if (jProperty.Value is JValue jValue)
+								{
+									DeserializeValueIntoTarget(target, memberInfo, jValue);
+								}
+							}
+							else if (jProperty.Value is JValue jValue && jValue.Value == null)
+                            {
 								DeserializeValueIntoTarget(target, memberInfo, jValue);
 							}
+							else
+                            {
+								throw new Exception("Attempting to deserialize a value into a Dictionary or Iterable");
+                            }
 							break;
 						}
 					}
