@@ -92,6 +92,8 @@ namespace CustomModules
 						NuterraMod.legacyToSessionIds.Add(legacyID, blockID);
 					}
 
+					NuterraDeserializer.DeserializingBlock = $"{def.m_BlockDisplayName} ({legacyID} => {blockID})";
+
 					// Ignore corporation. Custom corps no longer have a fixed ID, so we should use the official tool to set corp IDs.
 					//def.m_Corporation = TryParse(jData, "Corporation", def.m_Corporation);
 					block.m_BlockCategory = def.m_Category = TryParseEnum(jData, "Category", def.m_Category);
