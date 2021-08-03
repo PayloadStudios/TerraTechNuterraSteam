@@ -21,10 +21,6 @@ namespace CustomModules
 		private static Dictionary<string, Material> sMaterials;
 		private static Dictionary<Type, Dictionary<string, UnityEngine.Object>> sObjectsByType;
 
-		private static readonly Dictionary<string, string> blockRenames = new Dictionary<string, string> {
-			{ TrimForSafeSearch("GSO_Shield_111"), TrimForSafeSearch("GSO_Shield_Bubble_111") }
-		};
-
 		private static readonly Dictionary<string, string> materialRenames = new Dictionary<string, string> {
 			{ "Sparks", "Mat_FX_Sparks" }
 		};
@@ -51,15 +47,23 @@ namespace CustomModules
 				{
 					try
 					{
-						if (go.GetComponent<TankBlock>())
+						if (go.GetComponent<TankBlock>() is TankBlock block)
 						{
 							GameObject copy = GameObject.Instantiate(go);
 							go.SetActive(false);
 							copy.SetActive(false);
 
-							String name = TrimForSafeSearch(go.name);
-							sBlocksByName[name] = copy;
-							originalBlocksByName[name] = go;
+							String blockName = TrimForSafeSearch(go.name);
+							sBlocksByName[blockName] = copy;
+							originalBlocksByName[blockName] = go;
+
+							BlockTypes blockType = block.BlockType;
+							if (Enum.IsDefined(typeof(BlockTypes), blockType))
+                            {
+								string enumName = TrimForSafeSearch(blockType.ToString());
+								sBlocksByName[enumName] = copy;
+								originalBlocksByName[enumName] = go;
+							}
 
 							Visible v = go.GetComponent<Visible>();
 							if (v != null)
@@ -151,10 +155,6 @@ namespace CustomModules
         {
 			TryInit();
 			string safeName = TrimForSafeSearch(name);
-			if (blockRenames.TryGetValue(safeName, out string currentName))
-            {
-				safeName = currentName;
-            }
 			if (originalBlocksByName.TryGetValue(safeName, out GameObject result)) {
 				return result;
 			}
@@ -182,10 +182,6 @@ namespace CustomModules
 		{
 			TryInit();
 			string safeName = TrimForSafeSearch(name);
-			if (blockRenames.TryGetValue(safeName, out string currentName))
-			{
-				safeName = currentName;
-			}
 			if (sBlocksByName.TryGetValue(safeName, out GameObject result))
 			{
 				return result;

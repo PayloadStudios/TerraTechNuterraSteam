@@ -230,6 +230,7 @@ namespace CustomModules
 					bool cellsProcessed = false;
 					IntVector3 size = new IntVector3();
 
+					// Use the very first cell processor that gives you a non-empty result
 					// CellMap / CellsMap
 					if (TryGetTokenMultipleKeys(jData, out JToken jCellMap, "CellMap", "CellsMap"))
 					{
@@ -262,7 +263,6 @@ namespace CustomModules
 							cellsProcessed = true;
 						}
 					}
-
 					// old cells
 					if (!cellsProcessed && jData.TryGetValue("Cells", out JToken jCells) && jCells.Type == JTokenType.Array)
 					{
@@ -278,23 +278,22 @@ namespace CustomModules
 							cellsProcessed = true;
 						}
 					}
-
+					// BlockExtents
 					if (!cellsProcessed && jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
 					{
 						List<IntVector3> filledCells = new List<IntVector3>();
-						int x = ((JObject)jExtents).GetValue("x").ToObject<int>();
-						int y = ((JObject)jExtents).GetValue("y").ToObject<int>();
-						int z = ((JObject)jExtents).GetValue("z").ToObject<int>();
-						size.x = x;
-						size.y = y;
-						size.z = z;
+						size = GetVector3Int(jExtents);
 
-						for (int i = 0; i < x; i++)
-							for (int j = 0; j < y; j++)
-								for (int k = 0; k < z; k++)
+						for (int i = 0; i < size.x; i++)
+						{
+							for (int j = 0; j < size.y; j++)
+							{
+								for (int k = 0; k < size.z; k++)
 								{
 									filledCells.Add(new IntVector3(i, j, k));
 								}
+							}
+						}
 						block.filledCells = filledCells.ToArray();
 						usedBlockExtents = true;
 						Debug.Log("[Nuterra] Overwrote BlockExtents");
