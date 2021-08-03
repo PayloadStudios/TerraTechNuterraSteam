@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Linq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using CustomModules.NuterraSteam.LegacyBlockLoader;
 
 
 namespace CustomModules
@@ -17,8 +20,45 @@ namespace CustomModules
             .Replace("Assembly-CSharp.dll", ""), @"../../"
         ));
 
-        public bool TryGetSessionID(int legacyId, out int newId)
+        public static void TryRegisterUnofficialBlock(int blockID, ModdedBlockDefinition blockDef)
         {
+            string json = blockDef.m_Json.text;
+            string text = UnofficialBlock.Format(json);
+            try
+            {
+                JObject jObj = JObject.Parse(text);
+                if (jObj.TryGetValue(NuterraModuleLoader.ModuleID, out JToken nuterra) && nuterra.Type == JTokenType.Object)
+                {
+                    JObject UnofficialJson = (JObject) nuterra;
+                    if (UnofficialJson.TryGetValue("ID", out JToken value))
+                    {
+                        if (value.Type == JTokenType.Integer)
+                        {
+                            legacyToSessionIds.Add(value.ToObject<int>(), blockID);
+                        }
+                        else if (value.Type == JTokenType.String && int.TryParse(value.ToString(), out int ID))
+                        {
+                            legacyToSessionIds.Add(ID, blockID);
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to read Block {blockDef.m_BlockDisplayName} ({blockDef.m_BlockIdentifier}) json");
+                Console.WriteLine(e);
+            }
+        }
+
+        public static bool TryGetSessionID(int legacyId, out int newId)
+        {
+            /*
+             * Console.WriteLine($"Trying to get key {legacyId}");
+            foreach (int key in legacyToSessionIds.Keys)
+            {
+                Console.WriteLine(key);
+            }
+            */
             return legacyToSessionIds.TryGetValue(legacyId, out newId);
         }
 
@@ -39,6 +79,7 @@ namespace CustomModules
 
 		public override void DeInit()
 		{
+            Console.WriteLine("DE-INITED NUTERRASTEAM");
             legacyToSessionIds.Clear();
 		}
 	}

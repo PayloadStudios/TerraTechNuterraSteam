@@ -8,6 +8,7 @@ using System.IO;
 using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using UnityEngine;
 
 
 namespace CustomModules.NuterraSteam.LegacyBlockLoader
@@ -44,15 +45,18 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
         }
         private static Dictionary<Type, EnumParser> EnumDict = new Dictionary<Type, UnofficialBlock.EnumParser>();
 
-        private static string StripComments(string input)
+        internal static string Format(string input)
         {
             // JavaScriptSerializer doesn't accept commented-out JSON,
             // so we'll strip them out ourselves;
-            // NOTE: for safety and simplicity, we only support comments on their own lines,
-            // not sharing lines with real JSON
-            input = Regex.Replace(input, @"^\s*//.*$", "", RegexOptions.Multiline);  // removes comments like this
-            input = Regex.Replace(input, @"^\s*/\*(\s|\S)*?\*/\s*$", "", RegexOptions.Multiline); /* comments like this */
-            return input;
+            input = Regex.Replace(input, @"^\s*//.*$", "", RegexOptions.Multiline);  // removes line comments like this
+            input = Regex.Replace(input, @"/\*(\s|\S)*?\*/", "", RegexOptions.Multiline); /* comments like this */
+            // Console.WriteLine(input);
+            input = Regex.Replace(input, @"([,\[\{\]\}\." + Regex.Escape("\"") + @"0-9]|null)\s*//[^\n]*\n", "$1\n", RegexOptions.Multiline);    // Removes mixed JSON comments
+            // Console.WriteLine(input);
+            input = Regex.Replace(input, @",\s*([\}\]])", "\n$1", RegexOptions.Multiline);  // remove trailing ,
+            // Console.WriteLine(input);
+            return input.Replace("JSONBLOCK", "Deserializer");
         }
 
         private static T TryParseEnum<T>(int val, T defaultValue) where T : Enum
@@ -71,50 +75,104 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
 
         public UnofficialBlock(string path)
         {
-            string text = StripComments(File.ReadAllText(path));
+            string text = Format(File.ReadAllText(path));
 
-            jObject = JObject.Parse(DirectoryBlockLoader.ResolveFiles(text, path));
-            UnofficialBlockDefinition unofficialDef = jObject.ToObject<UnofficialBlockDefinition>(new JsonSerializer() { MissingMemberHandling = MissingMemberHandling.Ignore });
-            ID = unofficialDef.ID;
-            if (unofficialDef.Name is null || unofficialDef.Name.Length == 0)
+            string fileParsed;
+
+            try
             {
-                unofficialDef.Name = ID.ToString();
+                fileParsed = DirectoryBlockLoader.ResolveFiles(text, path).Trim();
+                // Console.WriteLine(fileParsed);
             }
-            unofficialDef.Grade++;  // Add 1 to Grade, b/c Legacy grade is 0-indexed, official blocks are 1-indexed
+            catch (Exception e)
+            {
+                Console.WriteLine("FAILED to parse files: \n" + text);
+                throw e;
+            }
 
-            JProperty Grade = jObject.Property("Grade");
-            Grade.Value = unofficialDef.Grade;
+            try
+            {
+                this.jObject = JObject.Parse(fileParsed);
+                UnofficialBlockDefinition unofficialDef = this.jObject.ToObject<UnofficialBlockDefinition>(new JsonSerializer() { MissingMemberHandling = MissingMemberHandling.Ignore });
+                FactionSubTypes corpType = TryParseEnum<FactionSubTypes>(unofficialDef.Faction, FactionSubTypes.GSO);
+                if (corpType == FactionSubTypes.NULL)
+                {
+                    corpType = FactionSubTypes.GSO;
+                }
+                Console.WriteLine($"[Nuterra] Read mod as {unofficialDef.ID}, {unofficialDef.Name}, {unofficialDef.Description} for corp {corpType}");
 
-            JProperty Category = jObject.Property("Category");
-            BlockCategories blockCategory = TryParseEnum<BlockCategories>(unofficialDef.Category, BlockCategories.Base);
-            Category.Value = blockCategory.ToString();
+                this.ID = unofficialDef.ID;
+                if (unofficialDef.Name is null || unofficialDef.Name.Length == 0)
+                {
+                    unofficialDef.Name = ID.ToString();
+                }
+                unofficialDef.Grade++;  // Add 1 to Grade, b/c Legacy grade is 0-indexed, official blocks are 1-indexed
 
-            JProperty Rarity = jObject.Property("Rarity");
-            BlockRarity blockRarity = TryParseEnum<BlockRarity>(unofficialDef.Rarity, BlockRarity.Common);
-            Rarity.Value = blockRarity.ToString();
+                this.jObject = JObject.Parse(fileParsed);
+                JProperty Grade = jObject.Property("Grade");
+                if (Grade != null)
+                {
+                    Grade.Value = unofficialDef.Grade;
+                }
+                else
+                {
+                    jObject.Add("Grade", unofficialDef.Grade);
+                }
 
-            blockDefinition = new ModdedBlockDefinition();
-            blockDefinition.m_BlockIdentifier = ID.ToString();
-            blockDefinition.m_BlockDisplayName = unofficialDef.Name;
-            blockDefinition.m_BlockDescription = unofficialDef.Description;
-            blockDefinition.m_Corporation = TryParseEnum<FactionSubTypes>(unofficialDef.Faction, FactionSubTypes.GSO).ToString();
-            blockDefinition.m_Category = blockCategory;
-            blockDefinition.m_Rarity = blockRarity;
-            blockDefinition.m_Grade = unofficialDef.Grade;
-            blockDefinition.m_Price = unofficialDef.Price;
-            blockDefinition.m_UnlockWithLicense = true;
-            blockDefinition.m_DamageableType = TryParseEnum<ManDamage.DamageableType>(unofficialDef.DamageableType, ManDamage.DamageableType.Standard);
-            blockDefinition.m_Mass = unofficialDef.Mass;
+                JProperty Category = jObject.Property("Category");
+                BlockCategories blockCategory = TryParseEnum<BlockCategories>(unofficialDef.Category, BlockCategories.Base);
+                if (Category != null)
+                {
+                    Category.Value = blockCategory.ToString();
+                }
 
-            WrapJSON();
+                JProperty Rarity = jObject.Property("Rarity");
+                BlockRarity blockRarity = TryParseEnum<BlockRarity>(unofficialDef.Rarity, BlockRarity.Common);
+                if (Rarity != null)
+                {
+                    Rarity.Value = blockRarity.ToString();
+                }
+
+                this.blockDefinition = ScriptableObject.CreateInstance<ModdedBlockDefinition>();
+                this.blockDefinition.m_BlockIdentifier = this.ID.ToString();
+                this.blockDefinition.m_BlockDisplayName = unofficialDef.Name;
+                this.blockDefinition.m_BlockDescription = unofficialDef.Description;
+                this.blockDefinition.m_Corporation = corpType.ToString();
+                this.blockDefinition.m_Category = blockCategory;
+                this.blockDefinition.m_Rarity = blockRarity;
+                this.blockDefinition.m_Grade = unofficialDef.Grade;
+                this.blockDefinition.m_Price = unofficialDef.Price;
+                this.blockDefinition.m_UnlockWithLicense = true;
+                this.blockDefinition.m_DamageableType = TryParseEnum<ManDamage.DamageableType>(unofficialDef.DamageableType, ManDamage.DamageableType.Standard);
+                this.blockDefinition.m_Mass = unofficialDef.Mass;
+                this.blockDefinition.name = unofficialDef.Name;
+
+                Console.WriteLine($"[Nuterra] Injecting into Corp {this.blockDefinition.m_Corporation}, Grade: {this.blockDefinition.m_Grade}");
+
+                GameObject prefab = new GameObject($"{unofficialDef.Name}_Prefab");
+                prefab.AddComponent<TankBlockTemplate>();
+                prefab.AddComponent<MeshFilter>();
+                prefab.AddComponent<MeshRenderer>();
+                prefab.AddComponent<BoxCollider>();
+                prefab.SetActive(false);
+                this.blockDefinition.m_PhysicalPrefab = prefab.GetComponent<TankBlockTemplate>();
+                this.WrapJSON();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("[Nuterra] FAILED to read JSON: \n" + fileParsed);
+                throw e;
+            }
+            // Console.WriteLine(fileParsed);
         }
-        public UnofficialBlock(FileInfo file) => new UnofficialBlock(file.FullName);
+        public UnofficialBlock(FileInfo file) : this(file.FullName) { }
 
         public void WrapJSON()
         {
             JObject wrappedJSON = new JObject();
-            wrappedJSON.Add("NuterraBlock", jObject);
-            blockDefinition.m_Json = new UnityEngine.TextAsset(wrappedJSON.ToString());
+            this.jObject.Add("AutoImported", true);
+            wrappedJSON.Add("NuterraBlock", this.jObject);
+            this.blockDefinition.m_Json = new UnityEngine.TextAsset(wrappedJSON.ToString());
         }
     }
 }

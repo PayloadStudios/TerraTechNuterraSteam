@@ -10,6 +10,7 @@ namespace CustomModules
     public class NuterraModuleLoader : JSONModuleLoader
 	{
 		private static Dictionary<string, Material> sMaterialCache = new Dictionary<string, Material>();
+		internal const string ModuleID = "NuterraBlock";
 
 		private RecipeTable.Recipe ParseRecipe(JObject jData, string corp, int blockID, out int RecipePrice)
         {
@@ -69,7 +70,7 @@ namespace CustomModules
 				if (jToken.Type == JTokenType.Object)
 				{
 					JObject jData = (JObject)jToken;
-
+					Debug.Log("[Nuterra] CreationStart");
 					// Get the mod contents so we can search for additional assets
 					ModContainer container = ManMods.inst.FindMod(def);
 					ModContents mod = container != null ? container.Contents : null;
@@ -142,7 +143,7 @@ namespace CustomModules
 							// TTQMM REF: DirectoryBlockLoader.CreateJSONBlock, the handling of these flags is a bit weird
 							if (keepRenderers && !keepColliders)
 								RemoveChildren<Collider>(block);
-							if (!keepRenderers && !keepReferenceRenderers)
+							if (!keepRenderers || !keepReferenceRenderers)
 							{
 								RemoveChildren<MeshRenderer>(block);
 								RemoveChildren<TankTrack>(block);
@@ -212,13 +213,20 @@ namespace CustomModules
 
 					// ------------------------------------------------------
 					#region Tweaks
+					Debug.Log("[Nuterra] Handling block cells");
 					// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
+					bool usedBlockExtents = false;
+					IntVector3 size = new IntVector3();
 					if (jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
 					{
 						List<IntVector3> filledCells = new List<IntVector3>();
 						int x = ((JObject)jExtents).GetValue("x").ToObject<int>();
 						int y = ((JObject)jExtents).GetValue("y").ToObject<int>();
 						int z = ((JObject)jExtents).GetValue("z").ToObject<int>();
+						size.x = x;
+						size.y = y;
+						size.z = z;
+
 						for (int i = 0; i < x; i++)
 							for (int j = 0; j < y; j++)
 								for (int k = 0; k < z; k++)
@@ -226,6 +234,7 @@ namespace CustomModules
 									filledCells.Add(new IntVector3(i, j, k));
 								}
 						block.filledCells = filledCells.ToArray();
+						usedBlockExtents = true;
 						Debug.Log("[Nuterra] Overwrote BlockExtents");
 					}
 					// CellMap / CellsMap
@@ -253,9 +262,13 @@ namespace CustomModules
 								}
 							}
 						}
-						block.filledCells = cells.ToArray();
+						if (cells.Count != 0 || (block.filledCells == null || block.filledCells.Length == 0))
+						{
+							block.filledCells = cells.ToArray();
+							usedBlockExtents = false;
+						}
 					}
-					// TODO: APsOnlyAtBottom / MakeAPsAtBottom
+					// old cells
 					if (jData.TryGetValue("Cells", out JToken jCells) && jCells.Type == JTokenType.Array)
 					{
 						List<IntVector3> filledCells = new List<IntVector3>();
@@ -263,9 +276,22 @@ namespace CustomModules
 						{
 							filledCells.Add(GetVector3Int(jCell));
 						}
-						block.filledCells = filledCells.ToArray();
+						if (filledCells.Count != 0 || (block.filledCells == null || block.filledCells.Length == 0))
+						{
+							block.filledCells = filledCells.ToArray();
+							usedBlockExtents = false;
+						}
 					}
+
+					// Handle failure to get cells
+					if (block.filledCells == null || block.filledCells.Length == 0)
+                    {
+						block.filledCells = new IntVector3[] { new IntVector3 (0, 0, 0) };
+                    }
+
+					Debug.Log("[Nuterra] Handling block APs");
 					// APs
+					bool manualAPs = false;
 					if (jData.TryGetValue("APs", out JToken jAPList) && jAPList.Type == JTokenType.Array)
 					{
 						List<Vector3> aps = new List<Vector3>();
@@ -274,7 +300,60 @@ namespace CustomModules
 							aps.Add(GetVector3(token));
 						}
 						block.attachPoints = aps.ToArray();
+						manualAPs = block.attachPoints.Length > 0;
 					}
+
+					// TODO: APsOnlyAtBottom / MakeAPsAtBottom
+					if (usedBlockExtents && !manualAPs)
+                    {
+						List<Vector3> aps = new List<Vector3>();
+						bool doAllPoints = true;
+						if (jData.TryGetValue("APsOnlyAtBottom", out JToken APMode) && APMode.Type == JTokenType.Boolean)
+						{
+							doAllPoints = !APMode.ToObject<bool>();
+						}
+
+						for (int x = 0; x < size.x; x++)
+						{
+							for (int y = 0; y < size.y; y++)
+							{
+								for (int z = 0; z < size.z; z++)
+								{
+									if (y == 0)
+									{
+										aps.Add(new Vector3(x, -0.5f, z));
+									}
+									if (doAllPoints)
+									{
+										if (x == 0)
+										{
+											aps.Add(new Vector3(-0.5f, y, z));
+										}
+										if (x == size.x - 1)
+										{
+											aps.Add(new Vector3(x + 0.5f, y, z));
+										}
+										if (y == size.y - 1)
+										{
+											aps.Add(new Vector3(x, y + 0.5f, z));
+										}
+										if (z == 0)
+										{
+											aps.Add(new Vector3(x, y, -0.5f));
+										}
+										if (z == size.z - 1)
+										{
+											aps.Add(new Vector3(x, y, z + 0.5f));
+										}
+									}
+								}
+							}
+						}
+
+						block.attachPoints = aps.ToArray();
+					}
+
+					Debug.Log("[Nuterra] Handling block stats");
 					// Some basic block stats
 					damageable.DamageableType = (ManDamage.DamageableType)TryParse(jData, "DamageableType", (int)damageable.DamageableType);
 					if(TryGetFloatMultipleKeys(jData, out float fragility, moduleDamage.m_DamageDetachFragility, "DetachFragility", "Fragility"))
@@ -335,6 +414,7 @@ namespace CustomModules
 					#endregion
 					// ------------------------------------------------------
 
+					Debug.Log("[Nuterra] Handling SubObjects");
 					// Start recursively adding objects with the root. 
 					// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
 					RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
@@ -348,14 +428,23 @@ namespace CustomModules
 
 					// Weird export fix up for meshes
 					// Flip everything in x
-					foreach (MeshRenderer mr in block.GetComponentsInChildren<MeshRenderer>())
+					bool toFlip = true;
+					if (jData.TryGetValue("AutoImported", out JToken isAutoImport) && isAutoImport.Type == JTokenType.Boolean)
+                    {
+						toFlip = !isAutoImport.ToObject<bool>();
+                    }
+
+					if (toFlip)
 					{
-						mr.transform.localScale = new Vector3(-mr.transform.localScale.x, mr.transform.localScale.y, mr.transform.localScale.z);
-					}
-					foreach (MeshCollider mc in block.GetComponentsInChildren<MeshCollider>())
-					{
-						if(mc.GetComponent<MeshRenderer>() == null) // Skip ones with both. Don't want to double flip
-							mc.transform.localScale = new Vector3(-mc.transform.localScale.x, mc.transform.localScale.y, mc.transform.localScale.z);
+						foreach (MeshRenderer mr in block.GetComponentsInChildren<MeshRenderer>())
+						{
+							mr.transform.localScale = new Vector3(-mr.transform.localScale.x, mr.transform.localScale.y, mr.transform.localScale.z);
+						}
+						foreach (MeshCollider mc in block.GetComponentsInChildren<MeshCollider>())
+						{
+							if (mc.GetComponent<MeshRenderer>() == null) // Skip ones with both. Don't want to double flip
+								mc.transform.localScale = new Vector3(-mc.transform.localScale.x, mc.transform.localScale.y, mc.transform.localScale.z);
+						}
 					}
 
 					return true;
@@ -688,29 +777,137 @@ namespace CustomModules
 				UnityEngine.Object.DestroyImmediate(c);
 		}
 
+		private Dictionary<string, HashSet<string>> GetCasePropertyMap(JObject jData)
+        {
+			Dictionary<string, HashSet<string>> lowercaseMap = new Dictionary<string, HashSet<string>>();
+			foreach (JProperty property in jData.Properties())
+			{
+				string lower = property.Name.ToLower();
+				if (lowercaseMap.ContainsKey(lower))
+                {
+					lowercaseMap[lower].Add(property.Name);
+                }
+				else
+                {
+					lowercaseMap[lower] = new HashSet<string> { property.Name };
+                }
+			}
+			return lowercaseMap;
+		}
+		private int CompareStringPrefix(string a, string b)
+        {
+			if (a is null || b is null)
+            {
+				return 0;
+            }
+			int score = 0;
+			for (int i = 0; i < Math.Min(a.Length, b.Length); i++)
+            {
+				if (a[i] == b[i])
+                {
+					score++;
+                }
+				else
+                {
+					return score;
+                }
+            }
+			return score;
+        }
+		private string GetClosestString(string value, HashSet<string> values)
+        {
+			int bestScore = 0;
+			string bestTarget = values.First();
+			foreach (string target in values)
+            {
+				int score = CompareStringPrefix(value, target);
+				if (score > bestScore)
+                {
+					bestScore = score;
+					bestTarget = target;
+                }
+            }
+			return bestTarget;
+        }
+
 		private Vector3 GetVector3(JToken token)
 		{
-			if (token.Type == JTokenType.Object
-			&& ((JObject)token).TryGetValue("x", out JToken xToken)
-			&& ((JObject)token).TryGetValue("y", out JToken yToken)
-			&& ((JObject)token).TryGetValue("z", out JToken zToken))
+			Vector3 result = Vector3.zero;
+			if (token.Type == JTokenType.Object)
 			{
-				return new Vector3(xToken.ToObject<float>(), yToken.ToObject<float>(), zToken.ToObject<float>());
+				JObject jData = (JObject)token;
+
+				if (jData.TryGetValue("x", out JToken xToken) && (xToken.Type == JTokenType.Integer || xToken.Type == JTokenType.Float))
+				{
+					result.x = xToken.ToObject<float>();
+
+				}
+				else if (jData.TryGetValue("X", out xToken) && (xToken.Type == JTokenType.Integer || xToken.Type == JTokenType.Float))
+				{
+					result.x = xToken.ToObject<float>();
+				}
+
+				if (jData.TryGetValue("y", out JToken yToken) && (yToken.Type == JTokenType.Integer || yToken.Type == JTokenType.Float))
+				{
+					result.y = yToken.ToObject<float>();
+
+				}
+				else if (jData.TryGetValue("Y", out yToken) && (yToken.Type == JTokenType.Integer || yToken.Type == JTokenType.Float))
+				{
+					result.y = yToken.ToObject<float>();
+				}
+
+				if (jData.TryGetValue("z", out JToken zToken) && (zToken.Type == JTokenType.Integer || zToken.Type == JTokenType.Float))
+				{
+					result.z = zToken.ToObject<float>();
+
+				}
+				else if (jData.TryGetValue("Z", out zToken) && (zToken.Type == JTokenType.Integer || zToken.Type == JTokenType.Float))
+				{
+					result.z = zToken.ToObject<float>();
+				}
 			}
-			return Vector3.zero;
+			return result;
 		}
 
 		private IntVector3 GetVector3Int(JToken token)
 		{
-			if (token.Type == JTokenType.Object
-			&& ((JObject)token).TryGetValue("x", out JToken xToken)
-			&& xToken.Type == JTokenType.Integer
-			&& ((JObject)token).TryGetValue("y", out JToken yToken)
-			&& yToken.Type == JTokenType.Integer
-			&& ((JObject)token).TryGetValue("z", out JToken zToken)
-			&& zToken.Type == JTokenType.Integer)
-				return new IntVector3(xToken.ToObject<int>(), yToken.ToObject<int>(), zToken.ToObject<int>());
-			return IntVector3.zero;
+			IntVector3 result = IntVector3.zero;
+			if (token.Type == JTokenType.Object)
+            {
+				JObject jData = (JObject)token;
+
+				if (jData.TryGetValue("x", out JToken xToken) && xToken.Type == JTokenType.Integer)
+                {
+					result.x = xToken.ToObject<int>();
+
+				}
+				else if (jData.TryGetValue("X", out xToken) && xToken.Type == JTokenType.Integer)
+				{
+					result.x = xToken.ToObject<int>();
+				}
+
+				if (jData.TryGetValue("y", out JToken yToken) && yToken.Type == JTokenType.Integer)
+				{
+					result.y = yToken.ToObject<int>();
+
+				}
+				else if (jData.TryGetValue("Y", out yToken) && yToken.Type == JTokenType.Integer)
+				{
+					result.y = yToken.ToObject<int>();
+				}
+
+				if (jData.TryGetValue("z", out JToken zToken) && zToken.Type == JTokenType.Integer)
+				{
+					result.z = zToken.ToObject<int>();
+
+				}
+				else if (jData.TryGetValue("Z", out zToken) && zToken.Type == JTokenType.Integer)
+				{
+					result.z = zToken.ToObject<int>();
+				}
+			}
+			return result;
 		}
 
 		private bool TryGetFloatMultipleKeys(JObject jData, out float result, float defaultValue, params string[] args)
@@ -731,6 +928,26 @@ namespace CustomModules
 					}
 				}
 			}
+			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
+			foreach (string arg in args)
+			{
+				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
+				{
+					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken))
+					{
+						if (jToken.Type == JTokenType.Float)
+						{
+							result = jToken.ToObject<float>();
+							return true;
+						}
+						else if (jToken.Type == JTokenType.Integer)
+						{
+							result = jToken.ToObject<int>();
+							return true;
+						}
+					}
+				}
+			}
 			result = defaultValue;
 			return false;
 		}
@@ -745,6 +962,18 @@ namespace CustomModules
 					return true;
 				}
 			}
+			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
+			foreach (string arg in args)
+			{
+				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
+				{
+					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken))
+					{
+						token = jToken;
+						return true;
+					}
+				}
+			}
 			token = null;
 			return false;
 		}
@@ -754,6 +983,17 @@ namespace CustomModules
 			if (jData.TryGetValue(key, out JToken jToken) && jToken.Type == JTokenType.Boolean)
 			{
 				return jToken.ToObject<bool>();
+			}
+			else
+            {
+				Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
+				if (lowerMap.TryGetValue(key.ToLower(), out HashSet<string> values))
+                {
+					if (jData.TryGetValue(GetClosestString(key, values), out jToken) && jToken.Type == JTokenType.Boolean)
+					{
+						return jToken.ToObject<bool>();
+					}
+				}
 			}
 			return defaultValue;
 		}
@@ -767,6 +1007,17 @@ namespace CustomModules
 					return jToken.ToObject<bool>();
 				}
 			}
+			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
+			foreach (string arg in args)
+			{
+				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
+				{
+					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken) && jToken.Type == JTokenType.Boolean)
+					{
+						return jToken.ToObject<bool>();
+					}
+				}
+			}
 			return defaultValue;
 		}
 
@@ -776,10 +1027,31 @@ namespace CustomModules
 			{
 				if(jData.TryGetValue(arg, out JToken jToken) && jToken.Type == JTokenType.String)
 				{
-					result = jToken.ToString();
-					return true;
+					string test = jToken.ToString();
+					if (test != "null")
+					{
+						result = test;
+						return true;
+					}
 				}
 			}
+			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
+			foreach (string arg in args)
+			{
+				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
+				{
+					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken) && jToken.Type == JTokenType.String)
+					{
+						string test = jToken.ToString();
+						if (test != "null")
+						{
+							result = test;
+							return true;
+						}
+					}
+				}
+			}
+
 			result = null;
 			return false;
 		}
@@ -787,7 +1059,7 @@ namespace CustomModules
 		// This is the JSON key that we check for in custom blocks
 		public override string GetModuleKey()
 		{
-			return "NuterraBlock";
+			return ModuleID;
 		}
 
 		static int AppendToRecipe(Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> RecipeBuilder, string Type, int Count)

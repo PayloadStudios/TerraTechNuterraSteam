@@ -53,6 +53,8 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
         private static Dictionary<int, UnofficialBlock> LegacyBlocks = new Dictionary<int, UnofficialBlock>();
         private static List<UnityEngine.Object> Assets = new List<UnityEngine.Object>();
 
+        private static bool AssetsLoaded = false;
+
         private static string GetRelAssetPath(string path)
         {
             string assetPath = Path.GetFullPath(path);
@@ -85,22 +87,26 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
 
         public static void LoadAssets()
         {
-            RegisterLowLevelAssets<Texture2D>("*.png", TextureFromFile, IconStore);
-            RegisterLowLevelAssets<Mesh>("*.obj", MeshFromFile, MeshStore);
-
-            // Load blocks
-            FileInfo[] blocks = CBDirectory.GetFiles("*.json", SearchOption.AllDirectories);
-            foreach (FileInfo block in blocks)
+            if (!AssetsLoaded)
             {
-                RegisterBlock(block);
-            }
+                RegisterLowLevelAssets<Texture2D>("*.png", TextureFromFile, IconStore);
+                RegisterLowLevelAssets<Mesh>("*.obj", MeshFromFile, MeshStore);
 
-            // Resolve Assets
-            ResolveAssets();
+                // Load blocks
+                FileInfo[] blocks = CBDirectory.GetFiles("*.json", SearchOption.AllDirectories);
+                foreach (FileInfo block in blocks)
+                {
+                    RegisterBlock(block);
+                }
+
+                // Resolve Assets
+                ResolveAssets();
+                AssetsLoaded = true;
+            }
         }
 
         private static readonly Regex FilesRegex = new Regex(
-            @":\s*" + Regex.Escape("\"") + @".+\.[a-zA-Z]+" + Regex.Escape("\""),
+            @":\s*" + Regex.Escape("\"") + @"[^" + Regex.Escape("\"") + @"]+\.[a-zA-Z]+" + Regex.Escape("\""),
             RegexOptions.Compiled | RegexOptions.IgnoreCase
         );
         internal static string ResolveFiles(string text, string path)
@@ -113,6 +119,7 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
             foreach (Match file in referencedFiles)
             {
                 string fileName = file.Value.Substring(1).Trim().Replace("\"", "");
+                Console.WriteLine("Found file reference: " + fileName);
                 string actualFileName = Path.GetFileName(fileName);
                 if (!closestFiles.ContainsKey(actualFileName))
                 {
@@ -122,6 +129,7 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
                         string closest = GetClosestPath(relativePath, paths);
                         closestFiles.Add(actualFileName, closest);
                         string[] fileNameTokens = actualFileName.Split('.');
+                        Console.WriteLine("Resolved to closest path: " + closest);
 
                         // Update FileNameReplacements so we know which alias to refer to the filenames by
                         if (UsedPathNames.TryGetValue(actualFileName, out HashSet<string> usedNames))
@@ -204,7 +212,7 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
             UnofficialBlock block = new UnofficialBlock(blockJSON);
             if (block != null)
             {
-                LegacyBlocks.Add(block.ID, block);
+                LegacyBlocks[block.ID] = block;
             }
         }
         
@@ -230,6 +238,8 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
                 }
             }
 
+            RegisterAssets(container);
+
             // Clear the stuff we're not using anymore
             AssetPaths.Clear();
             IconStore.Clear();
@@ -241,24 +251,55 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
             container.Contents.m_AdditionalAssets.AddRange(Assets);
         }
 
-        // this should get hooked to run right after ManMods.InjectModdedBlocks
-        public static void InjectLegacyBlocks(ModSessionInfo sessionInfo)
+        public static void RegisterAssets(ModContainer container)
         {
+            // Add ModDefinitions as Moddedassets
+            foreach (UnofficialBlock block in LegacyBlocks.Values)
+            {
+                container.RegisterAsset(block.blockDefinition);
+                // Assets.Add(block.blockDefinition);
+            }
+        }
+
+        // this should get hooked to run right after ManMods.InjectModdedBlocks
+        public static void InjectLegacyBlocks(
+            ModSessionInfo newSessionInfo,
+            Dictionary<int, Dictionary<int, Dictionary<BlockTypes, ModdedBlockDefinition>>> dictionary,
+            Dictionary<int, Sprite> dictionary2
+        )
+        {
+            Console.WriteLine("[Nuterra] INJECTING LEGACY BLOCKS");
             List<string> blocksToAssign = new List<string>();
-            Dictionary<string, ModdedBlockDefinition> definitionMap = new Dictionary<string, ModdedBlockDefinition>();
+            Dictionary<string, UnofficialBlock> definitionMap = new Dictionary<string, UnofficialBlock>();
+            List<int> portedIds = new List<int>();
             foreach (KeyValuePair<int, UnofficialBlock> pair in LegacyBlocks)
             {
                 if (NuterraMod.legacyToSessionIds.Keys.Contains(pair.Key))
                 {
-                    Console.WriteLine($"{pair.Key} has been ported to official. Using official version.");
+                    Console.WriteLine($"{pair.Value.blockDefinition.m_BlockDisplayName} ({pair.Key}) has been ported to official. Using official version.");
+                    portedIds.Add(pair.Key);
                 }
                 else
                 {
-                    string blockID = ModUtils.CreateCompoundId("NuterraSteam", pair.Key.ToString());
+                    string blockID = ModUtils.CreateCompoundId("NuterraSteam", pair.Value.blockDefinition.name);
+                    int version = 0;
+                    while (definitionMap.ContainsKey(blockID + (version > 0 ? "_" + version.ToString(): "")))
+                    {
+                        version++;
+                    }
+                    blockID += (version > 0 ? "_" + version.ToString() : "");
+                    pair.Value.blockDefinition.name = ModUtils.GetAssetFromCompoundId(blockID);
+                    Console.WriteLine($"Marking Block {pair.Value.blockDefinition.m_BlockDisplayName} [{blockID}] ({pair.Key}) for injection");
                     blocksToAssign.Add(blockID);
-                    definitionMap.Add(blockID, pair.Value.blockDefinition);
+                    definitionMap.Add(blockID, pair.Value);
                 }
             }
+            /* 
+            foreach (int portedId in portedIds)
+            {
+                LegacyBlocks.Remove(portedId);
+            }
+            */
 
             // inject into IDs
             MethodInfo AutoAssignIDs = typeof(ManMods)
@@ -270,12 +311,10 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
                     null
                 );
             AutoAssignIDs.Invoke(Singleton.Manager<ManMods>.inst,
-                new object[] { sessionInfo.BlockIDs, blocksToAssign, ManMods.k_FIRST_MODDED_BLOCK_ID, int.MaxValue });
+                new object[] { newSessionInfo.BlockIDs, blocksToAssign, ManMods.k_FIRST_MODDED_BLOCK_ID, int.MaxValue });
 
             ModContainer NuterraSteamContainer = Singleton.Manager<ManMods>.inst.FindMod("NuterraSteam");
 
-            Dictionary<int, Sprite> spriteDict = new Dictionary<int, Sprite>(16);
-            Dictionary<int, Dictionary<int, Dictionary<BlockTypes, ModdedBlockDefinition>>> dictionary = new Dictionary<int, Dictionary<int, Dictionary<BlockTypes, ModdedBlockDefinition>>>(); ;
             /* ^ Maps Corp index to block table
             {
                 corp_index: {
@@ -288,14 +327,14 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
 
             foreach (string assignedBlock in blocksToAssign)
             {
-                int blockID = sessionInfo.BlockIDs.FirstOrDefault(x => x.Value == assignedBlock).Key;
+                int blockID = newSessionInfo.BlockIDs.FirstOrDefault(x => x.Value == assignedBlock).Key;
                 InjectLegacyBlock(
-                    sessionInfo, blockID, definitionMap[assignedBlock],
-                    dictionary, spriteDict
+                    newSessionInfo, blockID, definitionMap[assignedBlock].ID, definitionMap[assignedBlock].blockDefinition,
+                    dictionary, dictionary2
                 );
             }
 
-            UpdateBlockUnlockTable(dictionary);
+            // UpdateBlockUnlockTable(dictionary);
         }
 
         #region Injection helpers
@@ -303,12 +342,11 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
         private static readonly FieldInfo m_BlockDescriptions = typeof(ManMods).GetField("m_BlockDescriptions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         private static readonly FieldInfo m_BlockIDReverseLookup = typeof(ManMods).GetField("m_BlockIDReverseLookup", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         internal static void InjectLegacyBlock(
-            ModSessionInfo sessionInfo, int blockID, ModdedBlockDefinition moddedBlockDefinition,
+            ModSessionInfo sessionInfo, int blockID, int legacyID, ModdedBlockDefinition moddedBlockDefinition,
             Dictionary<int, Dictionary<int, Dictionary<BlockTypes, ModdedBlockDefinition>>> dictionary,
             Dictionary<int, Sprite> spriteDict
         ) {
             ModContainer mod = Singleton.Manager<ManMods>.inst.FindMod("NuterraSteam");
-
             ManMods manMods = Singleton.Manager<ManMods>.inst;
             int hashCode = ItemTypeInfo.GetHashCode(ObjectTypes.Block, blockID);
             FactionSubTypes corpIndex = manMods.GetCorpIndex(moddedBlockDefinition.m_Corporation, sessionInfo);
@@ -316,7 +354,7 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
             Visible visible = physicalPrefab.GetComponent<Visible>();
             if (visible == null)
             {
-                d.Log("[Mods] Injected block " + moddedBlockDefinition.name + " and performed first time setup.");
+                Console.WriteLine("[Mods] Injected LEGACY block " + moddedBlockDefinition.name + " and performed first time setup.");
                 if (visible == null)
                 {
                     visible = physicalPrefab.gameObject.AddComponent<Visible>();
@@ -366,23 +404,27 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
                 {
                     componentsInChildren2[i].convex = true;
                 }
+                Console.WriteLine($"[Mods] Pooling block {moddedBlockDefinition.name}");
                 component2.transform.CreatePool(8);
             }
             else
             {
+                Console.WriteLine("[Mods] LEGACY block " + moddedBlockDefinition.name + " has visible present??");
+                NuterraMod.legacyToSessionIds.Add(legacyID, blockID);
+
                 physicalPrefab.gameObject.GetComponent<Visible>().m_ItemType = new ItemTypeInfo(ObjectTypes.Block, blockID);
                 physicalPrefab.transform.CreatePool(8);
             }
-
+            Console.WriteLine("8");
             Dictionary<int, string> names = (Dictionary<int, string>) m_BlockNames.GetValue(manMods);
             names.Add(blockID, moddedBlockDefinition.m_BlockDisplayName);
-
+            Console.WriteLine("9");
             Dictionary<int, string> descriptions = (Dictionary<int, string>) m_BlockDescriptions.GetValue(manMods);
             descriptions.Add(blockID, moddedBlockDefinition.m_BlockDescription);
-
+            Console.WriteLine("10");
             Dictionary<string, int> blockIDReverseLookup = (Dictionary<string, int>) m_BlockIDReverseLookup.GetValue(manMods);
             blockIDReverseLookup.Add(moddedBlockDefinition.name, blockID);
-
+            Console.WriteLine("11");
             Singleton.Manager<ManSpawn>.inst.AddBlockToDictionary(physicalPrefab.gameObject, blockID);
             Singleton.Manager<ManSpawn>.inst.VisibleTypeInfo.SetDescriptor<FactionSubTypes>(hashCode, corpIndex);
             Singleton.Manager<ManSpawn>.inst.VisibleTypeInfo.SetDescriptor<BlockCategories>(hashCode, moddedBlockDefinition.m_Category);
@@ -407,7 +449,7 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
             }
             dictionary3[moddedBlockDefinition.m_Grade - 1].Add((BlockTypes)blockID, moddedBlockDefinition);
             JSONBlockLoader.Inject(blockID, moddedBlockDefinition);
-            d.Log(string.Format("[Mods] Injected block {0} at ID {1}", moddedBlockDefinition.name, blockID));
+            Console.WriteLine(string.Format("[Mods] Injected legacy block {0} at ID {1}", moddedBlockDefinition.name, blockID));
         }
 
         private static readonly FieldInfo m_CurrentSession = typeof(ManMods).GetField("m_CurrentSession", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -420,6 +462,7 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
             {
                 foreach (KeyValuePair<int, Dictionary<BlockTypes, ModdedBlockDefinition>> keyValuePair3 in keyValuePair2.Value)
                 {
+                    Console.WriteLine($"Adding extra modded blocks for Corp Index {keyValuePair2.Key}, Grade Index {keyValuePair3.Key}");
                     blockUnlockTable.AddModdedBlocks(keyValuePair2.Key, keyValuePair3.Key, keyValuePair3.Value);
                     if (manMods.IsModdedCorp((FactionSubTypes)keyValuePair2.Key))
                     {

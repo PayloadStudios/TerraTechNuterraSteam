@@ -21,6 +21,10 @@ namespace CustomModules
 		private static Dictionary<string, Material> sMaterials;
 		private static Dictionary<Type, Dictionary<string, UnityEngine.Object>> sObjectsByType;
 
+		private static readonly Dictionary<string, string> blockRenames = new Dictionary<string, string> {
+			{ TrimForSafeSearch("GSO_Shield_111"), TrimForSafeSearch("GSO_Shield_Bubble_111") }
+		};
+
 		public static Material kMissingTextureTankBlock;
 
 		private static string TrimForSafeSearch(string Value) 
@@ -104,7 +108,24 @@ namespace CustomModules
 				return false;
 			}
 			string sRefPath = blockPath.Substring(separator + 1);
+
 			reference = refBlock.transform.RecursiveFindWithProperties(sRefPath);
+
+			// Copy if is reference to Unity obj
+			/*
+			if (reference is GameObject obj)
+            {
+				GameObject copy = GameObject.Instantiate(obj);
+				copy.SetActive(false);
+				reference = copy;
+			}
+			else if (reference is Component c)
+            {
+				GameObject copy = GameObject.Instantiate(c.gameObject);
+				copy.SetActive(false);
+				reference = copy;
+			}
+			*/
 			if (reference == null)
 			{
 				Console.WriteLine("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
@@ -124,8 +145,14 @@ namespace CustomModules
 		public static GameObject FindOriginalBlockByName(string name)
         {
 			TryInit();
-			if (originalBlocksByName.TryGetValue(TrimForSafeSearch(name), out GameObject result))
+			string safeName = TrimForSafeSearch(name);
+			if (blockRenames.TryGetValue(safeName, out string currentName))
+            {
+				safeName = currentName;
+            }
+			if (originalBlocksByName.TryGetValue(safeName, out GameObject result)) {
 				return result;
+			}
 			return null;
 		}
 		public static GameObject FindOriginalBlockByID(int id)
@@ -149,8 +176,15 @@ namespace CustomModules
 		public static GameObject FindBlockReferenceByName(string name)
 		{
 			TryInit();
-			if(sBlocksByName.TryGetValue(TrimForSafeSearch(name), out GameObject result))
+			string safeName = TrimForSafeSearch(name);
+			if (blockRenames.TryGetValue(safeName, out string currentName))
+			{
+				safeName = currentName;
+			}
+			if (sBlocksByName.TryGetValue(safeName, out GameObject result))
+			{
 				return result;
+			}
 			return null;
 		}
 
@@ -167,6 +201,8 @@ namespace CustomModules
 			TryInit();
 			if (sMaterials.TryGetValue(name, out Material result))
 				return result;
+
+			Console.WriteLine($"[Nuterra] FAILED to find material with name " + name);
 			return null;
 		}
 

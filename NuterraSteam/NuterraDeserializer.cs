@@ -27,6 +27,7 @@ namespace CustomModules
 			// Let's get reflective!
 			foreach (JProperty jProperty in jObject.Properties())
 			{
+				Debug.Log($"[Nuterra] Attempting to deserialize {targetType.ToString()}.{jProperty.Name}");
 				BindingFlags bind = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 				try
 				{
@@ -67,10 +68,72 @@ namespace CustomModules
 						continue;
 					}
 
-					
+					if (jProperty.Value != null)
+                    {
+						bool pass = false;
+						switch (memberInfo.MemberType)
+                        {
+							case MemberTypes.Event:
+								{
+									Debug.LogError($"[Nuterra] Trying to assign value to a Event");
+									break;
+								}
+							case MemberTypes.Constructor:
+                                {
+									Debug.LogError($"[Nuterra] Trying to assign value to a Constructor");
+									break;
+                                }
+							case MemberTypes.Method:
+                                {
+									Debug.LogError($"[Nuterra] Trying to assign value to a Method");
+									break;
+                                }
+							case MemberTypes.TypeInfo:
+                                {
+									Debug.LogError($"[Nuterra] Trying to assign value to a Type");
+									break;
+                                }
+							case MemberTypes.NestedType:
+                                {
+									Debug.LogError($"[Nuterra] Trying to assign value to a NestedType");
+									break;
+                                }
+							case MemberTypes.Custom:
+                                {
+									Debug.LogError($"[Nuterra] Trying to assign value to an custom MemberInfo");
+									break;
+                                }
+							default:
+                                {
+									pass = true;
+									break;
+                                }
+                        }
+						if (!pass)
+                        {
+							throw new Exception("Attempting to assign a value to an invalid member type");
+                        }
+						else
+                        {
+							Type propertyType;
+							if (propertyInfo != null)
+                            {
+								propertyType = propertyInfo.PropertyType;
+                            }
+							else
+                            {
+								propertyType = fieldInfo.FieldType;
+                            }
+
+							if (typeof(Delegate).IsAssignableFrom(propertyType))
+                            {
+								throw new Exception("Attempting to assign a value to a delegate");
+                            }
+						}
+                    }
 
 					// Switch on the type of JSON we are provided with
-					switch(jProperty.Value.Type)
+					switch (jProperty.Value.Type)
 					{
 						case JTokenType.Object:
 						{
@@ -187,8 +250,11 @@ namespace CustomModules
 							}
 
 							// Now deserialize the JSON into the new Component
+							Debug.LogError($"[Nuterra] Preparing deserialization");
 							DeserializeJSONObject(component, type, jProperty.Value as JObject);
 						}
+
+						Debug.Log($"[Nuterra] Processing complete for type {type}");
 					}
 					else
 					{
@@ -234,7 +300,10 @@ namespace CustomModules
 									Type type = reference.GetType();
 									Component existingComponent = target.GetComponent(type);
 									if (existingComponent == null)
+									{
+										Debug.Log($"[Nuterra] Could not find Component of type {type} - creating one now");
 										existingComponent = target.AddComponent(type);
+									}
 
 									// Copy the reference and then deserialize our JSON into it
 									ShallowCopy(type, reference, existingComponent, false);
