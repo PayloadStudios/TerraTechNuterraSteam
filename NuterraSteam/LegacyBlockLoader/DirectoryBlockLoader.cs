@@ -2,12 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Reflection;
 using UnityEngine;
-using CustomModules.NuterraSteam;
 
 
 namespace CustomModules.NuterraSteam.LegacyBlockLoader
@@ -424,16 +422,16 @@ namespace CustomModules.NuterraSteam.LegacyBlockLoader
                 physicalPrefab.gameObject.GetComponent<Visible>().m_ItemType = new ItemTypeInfo(ObjectTypes.Block, blockID);
                 physicalPrefab.transform.CreatePool(8);
             }
-            Console.WriteLine("8");
+
             Dictionary<int, string> names = (Dictionary<int, string>) m_BlockNames.GetValue(manMods);
             names.Add(blockID, moddedBlockDefinition.m_BlockDisplayName);
-            Console.WriteLine("9");
+
             Dictionary<int, string> descriptions = (Dictionary<int, string>) m_BlockDescriptions.GetValue(manMods);
             descriptions.Add(blockID, moddedBlockDefinition.m_BlockDescription);
-            Console.WriteLine("10");
+
             Dictionary<string, int> blockIDReverseLookup = (Dictionary<string, int>) m_BlockIDReverseLookup.GetValue(manMods);
             blockIDReverseLookup.Add(moddedBlockDefinition.name, blockID);
-            Console.WriteLine("11");
+
             Singleton.Manager<ManSpawn>.inst.AddBlockToDictionary(physicalPrefab.gameObject, blockID);
             Singleton.Manager<ManSpawn>.inst.VisibleTypeInfo.SetDescriptor<FactionSubTypes>(hashCode, corpIndex);
             Singleton.Manager<ManSpawn>.inst.VisibleTypeInfo.SetDescriptor<BlockCategories>(hashCode, moddedBlockDefinition.m_Category);

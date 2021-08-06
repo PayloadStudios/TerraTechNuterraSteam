@@ -65,7 +65,7 @@ namespace CustomModules
 					return tresult;
 				}
 				Transform result = transform;
-				//Console.Write(transform.name);
+				Console.Write(transform.name);
 
 				string propertyPath = nameOfProperty;
 				while (true)
@@ -74,7 +74,7 @@ namespace CustomModules
 					if (propIndex == -1)
 					{
 						var t = result.RecursiveFind(propertyPath);
-						//Console.WriteLine($"<FindTrans:{propertyPath}>{(t == null ? "EMPTY" : "RETURN")}");
+						Console.WriteLine($"<FindTrans:{propertyPath}>{(t == null ? "EMPTY" : "RETURN")}");
 						if (t == null && fallback != null && fallback != transform)
 							return fallback.RecursiveFindWithProperties(nameOfProperty);
 						return t;
@@ -84,11 +84,11 @@ namespace CustomModules
 					if (lastIndex > 0)
 					{
 						string transPath = propertyPath.Substring(0, lastIndex);
-						//Console.Write($"<Find:{transPath}>");
+						Console.Write($"<Find:{transPath}>");
 						result = result.RecursiveFind(transPath);
 						if (result == null)
 						{
-							//Console.WriteLine("EMPTY");
+							Console.WriteLine("EMPTY");
 							if (fallback != null && fallback != transform)
 								return fallback.RecursiveFindWithProperties(nameOfProperty);
 							return null;
@@ -100,7 +100,7 @@ namespace CustomModules
 					else propPath = propertyPath.Substring(propIndex, Math.Max(reIndex - propIndex, 0));
 					string propClass = propertyPath.Substring(lastIndex + 1, Math.Max(propIndex - lastIndex - 1, 0));
 
-					//Console.Write($"<Class:{propClass}>");
+					Console.Write($"<Class:{propClass}>");
 					Component component = result.gameObject.GetComponentWithIndex(propClass);
 					if (component == null)
 					{
@@ -111,7 +111,7 @@ namespace CustomModules
 						Console.WriteLine("RecursiveFindWithProperties failed!");
 						return null;
 					}
-					//Console.Write($"<Property:{propPath}>");
+					Console.Write($"<Property:{propPath}>");
 					object value = component.GetValueFromPath(propPath);
 
 					if (reIndex == -1)
@@ -120,7 +120,7 @@ namespace CustomModules
 						return value;
 					}
 
-					//Console.Write("<GetTrans>");
+					Console.Write("<GetTrans>");
 					result = (value as Component).transform;
 					propertyPath = propertyPath.Substring(reIndex);
 				}

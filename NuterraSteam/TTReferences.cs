@@ -231,12 +231,19 @@ namespace CustomModules
 			// One time cache each type for the base game assets
 			if (!sObjectsByType.TryGetValue(type, out Dictionary<string, UnityEngine.Object> dictionary))
 			{
-				dictionary = new Dictionary<string, UnityEngine.Object>();
-				foreach (UnityEngine.Object t in Resources.FindObjectsOfTypeAll(type))
+				try
 				{
-					dictionary[t.name] = t;
+					dictionary = new Dictionary<string, UnityEngine.Object>();
+					foreach (UnityEngine.Object t in Resources.FindObjectsOfTypeAll(type))
+					{
+						dictionary[t.name] = t;
+					}
+					sObjectsByType.Add(type, dictionary);
 				}
-				sObjectsByType.Add(type, dictionary);
+				catch (Exception e)
+                {
+					Console.WriteLine($"[Nuterra] ERROR caching assets of type {type}");
+                }
 			}
 
 			if (dictionary.TryGetValue(name, out obj))

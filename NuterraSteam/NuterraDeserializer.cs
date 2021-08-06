@@ -273,6 +273,10 @@ namespace CustomModules
 								Debug.LogError($"[Nuterra - {DeserializingBlock}] Failed to find component on target");
 								component = target.gameObject.AddComponent(type);
 							}
+							else
+                            {
+								Debug.Log($"[Nuterra - {DeserializingBlock}] Component found");
+                            }
 
 							// If we still can't find one, get it. This should like never happen, right?
 							if (component == null)
@@ -343,7 +347,7 @@ namespace CustomModules
 									GameObject referenceObject = reference is GameObject ? (GameObject)reference : ((Transform)reference).gameObject;
 
 									childObject = GameObject.Instantiate(referenceObject);
-									string newName = name.Substring(1 + name.LastIndexOfAny(new char[] { '/', '.' }));
+									string newName = referenceObject.name;
 									int count = 1;
 									while (target.transform.Find(newName))
 									{
