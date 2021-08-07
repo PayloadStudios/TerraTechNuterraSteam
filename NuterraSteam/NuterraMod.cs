@@ -83,7 +83,6 @@ namespace CustomModules
 
         public override void EarlyInit()
         {
-            TTReferences.TryInit();
         }
 
         public override bool HasEarlyInit()

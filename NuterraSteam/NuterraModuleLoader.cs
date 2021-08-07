@@ -138,7 +138,7 @@ namespace CustomModules
 						GameObject originalGameObject = TTReferences.FindBlockReferenceFromString(referenceBlock);
 						if (originalGameObject != null)
 						{
-							GameObject newObject = UnityEngine.Object.Instantiate(originalGameObject);
+							GameObject newObject = GameObject.Instantiate(originalGameObject);
 							// Assign this back to block for further processing
 							block = GetOrAddComponent<TankBlock>(newObject.transform);
 							//TankBlock original = originalGameObject.GetComponent<TankBlock>();
