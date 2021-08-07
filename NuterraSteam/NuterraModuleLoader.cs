@@ -610,7 +610,19 @@ namespace CustomModules
 					if (hasMaterial)
 					{
 						string matName = materialName.Replace("Venture_", "VEN_").Replace("GeoCorp_", "GC_").Replace("Hawkeye_", "HE_");
-						mat = TTReferences.FindMaterial(matName);
+						Material refMaterial = TTReferences.FindMaterial(matName);
+						if (refMaterial != null) {
+							mat = refMaterial;
+						}
+						else
+                        {
+							// Material name is bad
+							if (!hasAlbedo)
+                            {
+								hasAlbedo = true;
+								albedoName = materialName;
+                            }
+                        }
 					}
 
 					Texture2D albedo = hasAlbedo ? TTReferences.Find<Texture2D>(albedoName, mod) : null;

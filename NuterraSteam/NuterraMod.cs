@@ -43,12 +43,10 @@ namespace CustomModules
 
         public static void TryRegisterUnofficialBlock(int blockID, ModdedBlockDefinition blockDef)
         {
-            string json = blockDef.m_Json.text;
-            string text = Format(json);
             try
             {
-                JObject jObj = JObject.Parse(text);
-                if (jObj.TryGetValue(NuterraModuleLoader.ModuleID, out JToken nuterra) && nuterra.Type == JTokenType.Object)
+                JObject jObj = JObject.Parse(blockDef.m_Json.text);
+                if (jObj != null && jObj.TryGetValue(NuterraModuleLoader.ModuleID, out JToken nuterra) && nuterra.Type == JTokenType.Object)
                 {
                     JObject UnofficialJson = (JObject) nuterra;
                     if (UnofficialJson.TryGetValue("ID", out JToken value))
@@ -66,7 +64,7 @@ namespace CustomModules
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to read Block {blockDef.m_BlockDisplayName} ({blockDef.m_BlockIdentifier}) json");
+                Console.WriteLine($"Failed to read Block {blockDef.m_BlockDisplayName} ({blockDef.m_BlockIdentifier}) json:\n{blockDef.m_Json.text}");
                 Console.WriteLine(e);
             }
         }
