@@ -4,6 +4,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using CustomModules.LegacyModule;
 
 namespace CustomModules
 {
@@ -11,6 +12,10 @@ namespace CustomModules
 	{
 		private static Dictionary<string, Material> sMaterialCache = new Dictionary<string, Material>();
 		internal const string ModuleID = "NuterraBlock";
+
+		private const BindingFlags BindingInstance = BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic;
+		internal static readonly FieldInfo
+			m_BlockRotationTable = typeof(ManTechBuilder).GetField("m_BlockRotationTable", BindingInstance);
 
 		private RecipeTable.Recipe ParseRecipe(JObject jData, string corp, int blockID, out int RecipePrice)
         {
@@ -91,6 +96,10 @@ namespace CustomModules
 						Debug.Log(string.Format("[Nuterra] Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockID));
 						NuterraMod.legacyToSessionIds.Add(legacyID, blockID);
 					}
+					else
+                    {
+						NuterraMod.nonLegacyBlocks.Add(blockID);
+                    }
 
 					NuterraDeserializer.DeserializingBlock = $"{def.m_BlockDisplayName} ({legacyID} => {blockID})";
 
@@ -298,8 +307,7 @@ namespace CustomModules
 						usedBlockExtents = true;
 						Debug.Log("[Nuterra] Overwrote BlockExtents");
 					}
-					
-					
+
 					// Handle failure to get cells
 					if (block.filledCells == null || block.filledCells.Length == 0)
                     {
@@ -380,6 +388,14 @@ namespace CustomModules
 
 					block.m_DefaultMass = TryParse(jData, "Mass", block.m_DefaultMass);
 
+					// Emission Mode
+					ModuleCustomBlock.EmissionMode mode = ModuleCustomBlock.EmissionMode.None;
+					if (jData.TryGetValue("EmissionMode", out JToken jEmissionMode) && jEmissionMode.Type == JTokenType.Integer)
+					{
+						int emissionMode = jEmissionMode.ToObject<int>();
+						mode = (ModuleCustomBlock.EmissionMode)emissionMode;
+					}
+
 					// Center of Mass
 					JArray jComVector = null;
 					if (jData.TryGetValue("CenterOfMass", out JToken com1) && com1.Type == JTokenType.Array)
@@ -396,18 +412,48 @@ namespace CustomModules
 							comTrans.localScale = Vector3.one;
 							comTrans.localRotation = Quaternion.identity;
 						}
-						comTrans.localPosition = new Vector3(jComVector[0].ToObject<float>(), jComVector[1].ToObject<float>(), jComVector[2].ToObject<float>());
+
+						Vector3 CenterOfMass = new Vector3(jComVector[0].ToObject<float>(), jComVector[1].ToObject<float>(), jComVector[2].ToObject<float>()); ;
+						comTrans.localPosition = CenterOfMass;
 
 						// TODO: Weird thing about offseting colliders from Nuterra
-						//for (int i = 0; i < Prefab.transform.childCount; i++)
-						//{
-						//	transform = Prefab.transform.GetChild(i);
-						//	if (transform.name.Length < 5 && transform.name.EndsWith("col")) // "[a-z]col"
-						//		transform.localPosition = CenterOfMass;
-						//}
-					}
+						// Absolutely no idea what it does
+						/*
+						for (int i = 0; i < block.transform.childCount; i++)
+						{
+							transform = block.transform.GetChild(i);
+							if (transform.name.Length < 5 && transform.name.EndsWith("col")) // "[a-z]col"
+								transform.localPosition = CenterOfMass;
+						}
+						*/
 
-					// TODO: RotationGroup
+						ModuleCustomBlock customBlock = block.gameObject.EnsureComponent<ModuleCustomBlock>();
+						customBlock.HasInjectedCenterOfMass = true;
+						customBlock.InjectedCenterOfMass = CenterOfMass;
+						if (mode != ModuleCustomBlock.EmissionMode.None)
+						{
+							customBlock.BlockEmissionMode = mode;
+						}
+					}
+					else if (mode != ModuleCustomBlock.EmissionMode.None)
+                    {
+						ModuleCustomBlock customBlock = block.gameObject.EnsureComponent<ModuleCustomBlock>();
+						customBlock.BlockEmissionMode = mode;
+                    }
+
+					// RotationGroup
+					if (jData.TryGetValue("RotationGroup", out JToken rotGroup) && rotGroup.Type == JTokenType.String)
+                    {
+						string RotationGroupName = rotGroup.ToString();
+						BlockRotationTable BlockRotationTable = (BlockRotationTable)m_BlockRotationTable.GetValue(Singleton.Manager<ManTechBuilder>.inst);
+						BlockRotationTable.GroupIndexLookup newLookup = new BlockRotationTable.GroupIndexLookup
+						{
+							blockType = blockID,
+							groupName = RotationGroupName
+						};
+						BlockRotationTable.m_BlockRotationGroupIndex.Add(newLookup);
+						NuterraMod.addedRotationGroups.Add(newLookup);
+					}
 
 					// IconName override
 					if (jData.TryGetValue("IconName", out JToken jIconName) && jIconName.Type == JTokenType.String)
@@ -426,7 +472,49 @@ namespace CustomModules
 						}
 					}
 
-					// TODO: Emission Mode
+					// DropFromCrates no longer useful => all official modded blocks drop from crates by default
+					// PairedBlock
+					int PairedBlock = -1;
+					if (jData.TryGetValue("PairedBlock", out JToken jPairedBlock) && jPairedBlock.Type == JTokenType.Integer)
+					{
+						PairedBlock = jPairedBlock.ToObject<int>();
+					}
+					bool seenBlock = false;
+					for (int i = 0; i < Globals.inst.m_BlockPairsList.m_BlockPairs.Length; i++)
+					{
+						BlockPairsList.BlockPairs pair = Globals.inst.m_BlockPairsList.m_BlockPairs[i];
+						if (legacyID != 0 && pair.m_Block == (BlockTypes)legacyID)
+						{
+							pair.m_Block = (BlockTypes)blockID;
+							seenBlock = true;
+						}
+						else if (
+							PairedBlock >= 0 &&
+							(
+								pair.m_Block == (BlockTypes)PairedBlock ||
+								(NuterraMod.TryGetSessionID(PairedBlock, out int PairedSessionID) && pair.m_Block == (BlockTypes) PairedSessionID)
+							)
+						)
+                        {
+							seenBlock = true;
+                        }
+						if (pair.m_PairedBlock == (BlockTypes)legacyID)
+						{
+							pair.m_PairedBlock = (BlockTypes)blockID;
+						}
+					}
+					if (PairedBlock >= 0 && !seenBlock)
+                    {
+						var arr = Globals.inst.m_BlockPairsList.m_BlockPairs;
+						Array.Resize(ref arr, arr.Length + 1);
+						arr[arr.Length - 1] = new BlockPairsList.BlockPairs()
+						{
+							m_Block = (BlockTypes) blockID,
+							m_PairedBlock = (BlockTypes) (NuterraMod.TryGetSessionID(PairedBlock, out int PairedSessionID) ? PairedSessionID : PairedBlock)
+						};
+						Globals.inst.m_BlockPairsList.m_BlockPairs = arr;
+					}
+
 					// Filepath? For reparse?
 					#endregion
 					// ------------------------------------------------------

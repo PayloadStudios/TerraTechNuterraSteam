@@ -101,6 +101,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="NuterraSteam\LegacyModule\ModuleCustomBlock.cs" />
     <Compile Include="NuterraSteam\NuterraDeserializer.cs" />
     <Compile Include="NuterraSteam\TTReferences.cs" />
     <Compile Include="NuterraSteam\Util.cs" />

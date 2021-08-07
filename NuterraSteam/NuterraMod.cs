@@ -13,6 +13,8 @@ namespace CustomModules
     public class NuterraMod : ModBase
     {
         internal static Dictionary<int, int> legacyToSessionIds = new Dictionary<int, int>();
+        internal static List<int> nonLegacyBlocks = new List<int>();
+        internal static List<BlockRotationTable.GroupIndexLookup> addedRotationGroups = new List<BlockRotationTable.GroupIndexLookup>();
         public static int LoadOrder = 2;
         internal static string TTSteamDir = Path.GetFullPath(Path.Combine(
             AppDomain.CurrentDomain.GetAssemblies()
@@ -98,7 +100,25 @@ namespace CustomModules
 
 		public override void DeInit()
 		{
+            // Reset Paired Block Unlock Table
+            Globals.inst.m_BlockPairsList.m_BlockPairs =
+                Globals.inst.m_BlockPairsList.m_BlockPairs
+                .Where(pair => !nonLegacyBlocks.Contains((int) pair.m_Block) && !legacyToSessionIds.ContainsValue((int) pair.m_Block))
+                .ToArray();
+
+            nonLegacyBlocks.Clear();
             legacyToSessionIds.Clear();
-		}
+            
+            //Reset Block Rotation Table
+            BlockRotationTable BlockRotationTable = (BlockRotationTable)NuterraModuleLoader.m_BlockRotationTable.GetValue(Singleton.Manager<ManTechBuilder>.inst);
+            foreach (BlockRotationTable.GroupIndexLookup lookup in addedRotationGroups)
+            {
+                if (!BlockRotationTable.m_BlockRotationGroupIndex.Remove(lookup))
+                {
+                    Console.WriteLine("[NuterraSteam] ERROR - FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
+                }
+            }
+            addedRotationGroups.Clear();
+        }
 	}
 }
