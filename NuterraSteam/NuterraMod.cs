@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using CustomModules.NuterraSteam.LegacyBlockLoader;
 
 
 namespace CustomModules
@@ -20,10 +20,29 @@ namespace CustomModules
             .Replace("Assembly-CSharp.dll", ""), @"../../"
         ));
 
+        internal static string Format(string input)
+        {
+            // JavaScriptSerializer doesn't accept commented-out JSON,
+            // so we'll strip them out ourselves;
+            input = Regex.Replace(input, @"^\s*//.*$", "", RegexOptions.Multiline);  // removes line comments like this
+            input = Regex.Replace(input, @"/\*(\s|\S)*?\*/", "", RegexOptions.Multiline); /* comments like this */
+            // Console.WriteLine(input);
+            input = Regex.Replace(input, @"([,\[\{\]\}\." + Regex.Escape("\"") + @"0-9]|null)\s*//[^\n]*\n", "$1\n", RegexOptions.Multiline);    // Removes mixed JSON comments
+            // Console.WriteLine(input);
+            input = Regex.Replace(input, @",\s*([\}\]])", "\n$1", RegexOptions.Multiline);  // remove trailing ,
+            // Console.WriteLine(input);
+            return input.Replace("JSONBLOCK", "Deserializer");
+        }
+
+        public static void TryRegisterIDMapping(int legacyID, int sessionID)
+        {
+            legacyToSessionIds.Add(legacyID, sessionID);
+        }
+
         public static void TryRegisterUnofficialBlock(int blockID, ModdedBlockDefinition blockDef)
         {
             string json = blockDef.m_Json.text;
-            string text = UnofficialBlock.Format(json);
+            string text = Format(json);
             try
             {
                 JObject jObj = JObject.Parse(text);
@@ -79,7 +98,6 @@ namespace CustomModules
 
 		public override void DeInit()
 		{
-            Console.WriteLine("DE-INITED NUTERRASTEAM");
             legacyToSessionIds.Clear();
 		}
 	}

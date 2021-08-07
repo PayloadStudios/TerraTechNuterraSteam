@@ -101,13 +101,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="NuterraSteam\LegacyBlockLoader\DirectoryBlockLoader.cs" />
-    <Compile Include="NuterraSteam\LegacyBlockLoader\FastObjImporter.cs" />
-    <Compile Include="NuterraSteam\LegacyBlockLoader\UnofficialBlock.cs" />
-    <Compile Include="NuterraSteam\LegacyBlockLoader\UnofficialBlockDefinition.cs" />
     <Compile Include="NuterraSteam\NuterraDeserializer.cs" />
     <Compile Include="NuterraSteam\TTReferences.cs" />
-    <Compile Include="NuterraSteam\LegacyBlockLoader\UnofficialBlockLoader.cs" />
     <Compile Include="NuterraSteam\Util.cs" />
     <Compile Include="NuterraSteam\GameObjectExtensions.cs" />
     <Compile Include="NuterraSteam\NuterraMod.cs" />
