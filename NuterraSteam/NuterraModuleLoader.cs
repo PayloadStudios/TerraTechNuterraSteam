@@ -397,12 +397,7 @@ namespace CustomModules
 					}
 
 					// Center of Mass
-					JArray jComVector = null;
-					if (jData.TryGetValue("CenterOfMass", out JToken com1) && com1.Type == JTokenType.Array)
-						jComVector = (JArray)com1;
-					if (jData.TryGetValue("CentreOfMass ", out JToken com2) && com2.Type == JTokenType.Array)
-						jComVector = (JArray)com2;
-					if (jComVector != null)
+					if (TryGetTokenMultipleKeys(jData, out JToken comToken, new string[] { "CenterOfMass", "CentreOfMass" }))
 					{
 						Transform comTrans = block.transform.Find("CentreOfMass");
 						if (comTrans == null)
@@ -413,7 +408,7 @@ namespace CustomModules
 							comTrans.localRotation = Quaternion.identity;
 						}
 
-						Vector3 CenterOfMass = new Vector3(jComVector[0].ToObject<float>(), jComVector[1].ToObject<float>(), jComVector[2].ToObject<float>()); ;
+						Vector3 CenterOfMass = GetVector3(comToken);
 						comTrans.localPosition = CenterOfMass;
 
 						// TODO: Weird thing about offseting colliders from Nuterra
@@ -975,6 +970,25 @@ namespace CustomModules
 					result.z = zToken.ToObject<float>();
 				}
 			}
+			else if (token.Type == JTokenType.Array)
+            {
+				JArray jList = (JArray)token;
+				for (int i = 0; i < Math.Min(3, jList.Count); i++)
+                {
+					switch (i)
+                    {
+						case 0:
+							result.x = jList[i].ToObject<float>();
+							break;
+						case 1:
+							result.y = jList[i].ToObject<float>();
+							break;
+						case 2:
+							result.z = jList[i].ToObject<float>();
+							break;
+                    }
+                }
+			}
 			return result;
 		}
 
@@ -1013,6 +1027,25 @@ namespace CustomModules
 				else if (jData.TryGetValue("Z", out zToken) && zToken.Type == JTokenType.Integer)
 				{
 					result.z = zToken.ToObject<int>();
+				}
+			}
+			else if (token.Type == JTokenType.Array)
+			{
+				JArray jList = (JArray)token;
+				for (int i = 0; i < Math.Min(3, jList.Count); i++)
+				{
+					switch (i)
+					{
+						case 0:
+							result.x = jList[i].ToObject<int>();
+							break;
+						case 1:
+							result.y = jList[i].ToObject<int>();
+							break;
+						case 2:
+							result.z = jList[i].ToObject<int>();
+							break;
+					}
 				}
 			}
 			return result;
