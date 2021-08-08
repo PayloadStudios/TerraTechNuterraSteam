@@ -729,7 +729,7 @@ namespace CustomModules
 					if (mesh != null)
 					{
 						mesh.RecalculateBounds();
-						bc.size = mesh.bounds.size - Vector3.one * 0.2f;
+						bc.size = mesh.bounds.size * 0.9f;
 						bc.center = mesh.bounds.center;
 					}
 					else 
@@ -888,7 +888,7 @@ namespace CustomModules
 
 		private void RemoveChildren<T>(Component obj) where T : Component
 		{
-			foreach (Component c in obj.gameObject.GetComponentsInChildren<T>())
+			foreach (Component c in obj.gameObject.GetComponentsInChildren<T>(true))
 				UnityEngine.Object.DestroyImmediate(c);
 		}
 
