@@ -22,7 +22,7 @@ namespace CustomModules
 			RecipePrice = 0;
 			if (jData.TryGetValue("Recipe", out JToken jRecipe))
 			{
-				Debug.Log($"[Nuterra] Recipe detected: {jRecipe.ToString()}");
+				LoggingWrapper.Log($"[Nuterra] Recipe detected: {jRecipe.ToString()}");
 
 				RecipeTable.Recipe recipe = new RecipeTable.Recipe();
 				Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> dictionary = new Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec>();
@@ -30,7 +30,7 @@ namespace CustomModules
 				if (jRecipe is JValue rString)
 				{
 					string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-					Debug.Log($"[Nuterra] Adjusted Recipe Str: {recipeString}");
+					LoggingWrapper.Log($"[Nuterra] Adjusted Recipe Str: {recipeString}");
 					foreach (string item in recipeString)
 					{
 						RecipePrice += AppendToRecipe(dictionary, item, 1);
@@ -60,7 +60,7 @@ namespace CustomModules
 			}
 			else
 			{
-				Debug.Log("[Nuterra] No Recipe Found");
+				LoggingWrapper.Log("[Nuterra] No Recipe Found");
 			}
 			return null;
 		}
@@ -70,18 +70,18 @@ namespace CustomModules
 		{
 			try
 			{
-				Debug.Log("[Nuterra] Loading CustomBlock module");
+				LoggingWrapper.Log("[Nuterra] Loading CustomBlock module");
 
 				if (jToken.Type == JTokenType.Object)
 				{
 					JObject jData = (JObject)jToken;
-					Debug.Log("[Nuterra] CreationStart");
+					LoggingWrapper.Log("[Nuterra] CreationStart");
 					// Get the mod contents so we can search for additional assets
 					ModContainer container = ManMods.inst.FindMod(def);
 					ModContents mod = container != null ? container.Contents : null;
 					if (mod == null)
 					{
-						Debug.LogError("[Nuterra] Could not find mod that this unoffical block is part of"); 
+						LoggingWrapper.LogError("[Nuterra] Could not find mod that this unoffical block is part of"); 
 						return false;
 					}
 					// ------------------------------------------------------
@@ -90,10 +90,10 @@ namespace CustomModules
 					def.m_BlockDescription = TryParse(jData, "Description", def.m_BlockDescription);
 
 					// We get an ID for backwards compatibility
-					int legacyID = TryParse(jData, "ID", 0);
+					int legacyID = CustomParser.LenientTryParseInt(jData, "ID", 0);
 					if (legacyID != 0)
 					{
-						Debug.Log(string.Format("[Nuterra] Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockID));
+						LoggingWrapper.Log(string.Format("[Nuterra] Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockID));
 						NuterraMod.legacyToSessionIds.Add(legacyID, blockID);
 					}
 					else
@@ -104,33 +104,37 @@ namespace CustomModules
 					NuterraDeserializer.DeserializingBlock = $"{def.m_BlockDisplayName} ({legacyID} => {blockID})";
 
 					// Ignore corporation. Custom corps no longer have a fixed ID, so we should use the official tool to set corp IDs.
-					//def.m_Corporation = TryParse(jData, "Corporation", def.m_Corporation);
-					block.m_BlockCategory = def.m_Category = TryParseEnum(jData, "Category", def.m_Category);
-					def.m_Rarity = TryParseEnum(jData, "Rarity", def.m_Rarity);
-					def.m_Grade = TryParse(jData, "Grade", def.m_Grade);
+					//def.m_Corporation = CustomParser.LenientTryParseInt(jData, "Corporation", def.m_Corporation);
+					def.m_Category = CustomParser.LenientTryParseEnum<BlockCategories>(jData, "Category", def.m_Category);
+					def.m_Category = def.m_Category != BlockCategories.Null ? def.m_Category : BlockCategories.Standard;
+					block.m_BlockCategory = def.m_Category;
+					def.m_Rarity = CustomParser.LenientTryParseEnum<BlockRarity>(jData, "Rarity", def.m_Rarity);
+					block.m_BlockRarity = def.m_Rarity;
+					def.m_Grade = CustomParser.LenientTryParseInt(jData, "Grade", def.m_Grade);
+					LoggingWrapper.Log($"[Nuterra {def.m_BlockDisplayName}] Grade: {def.m_Grade}");
 
 					// Recipe
 					ParseRecipe(jData, def.m_Corporation, blockID, out int RecipePrice);
 					def.m_Price = RecipePrice * 3;
-					int overridePrice = TryParse(jData, "Price", 0);
+					int overridePrice = CustomParser.LenientTryParseInt(jData, "Price", 0);
 					if (overridePrice > 0) {
-						Debug.Log($"[Nuterra] Read override price of {overridePrice}");
+						LoggingWrapper.Log($"[Nuterra] Read override price of {overridePrice}");
 						def.m_Price = overridePrice;
 					}
 					else
                     {
-						Debug.Log($"[Nuterra] No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
+						LoggingWrapper.Log($"[Nuterra] No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
 					}
-					def.m_MaxHealth = TryParse(jData, "HP", def.m_MaxHealth);
+					def.m_MaxHealth = CustomParser.LenientTryParseInt(jData, "HP", def.m_MaxHealth);
 
 					// ------------------------------------------------------
 					#region Reference - Copy a vanilla block
-					Debug.Log("[Nuterra] Starting references");
-					bool keepRenderers = TryParse(jData, "KeepRenderers", true);
-					bool keepReferenceRenderers = TryParse(jData, "KeepReferenceRenderers", true);
-					bool keepColliders = TryParse(jData, "KeepColliders", true);
+					LoggingWrapper.Log("[Nuterra] Starting references");
+					bool keepRenderers = CustomParser.LenientTryParseBool(jData, "KeepRenderers", false);
+					bool keepReferenceRenderers = CustomParser.LenientTryParseBool(jData, "KeepReferenceRenderers", false);
+					bool keepColliders = CustomParser.LenientTryParseBool(jData, "KeepColliders", true);
 
-					if(TryGetStringMultipleKeys(jData, out string referenceBlock, "GamePrefabReference", "PrefabReference"))
+					if(CustomParser.TryGetStringMultipleKeys(jData, out string referenceBlock, "GamePrefabReference", "PrefabReference"))
 					{
 						// This code block copies our chosen reference block
 						// TTQMM REF: BlockPrefabBuilder.Initialize
@@ -149,12 +153,17 @@ namespace CustomModules
 							// for now that you are making 100% official or 100% unofficial JSONs
 							def.m_PhysicalPrefab = fakeTemplate;
 
-							Debug.Log($"[Nuterra] Found game prefab reference as {newObject}");
+							LoggingWrapper.Log($"[Nuterra] Found game prefab reference as {newObject}");
 
 							// TTQMM REF: DirectoryBlockLoader.CreateJSONBlock, the handling of these flags is a bit weird
-							if (keepRenderers && !keepColliders)
-								RemoveChildren<Collider>(block);
-							if (!keepRenderers || !keepReferenceRenderers)
+							if (keepRenderers)
+							{
+								if (!keepColliders)
+								{
+									RemoveChildren<Collider>(block);
+								}
+							}
+							else if (!keepReferenceRenderers)
 							{
 								RemoveChildren<MeshRenderer>(block);
 								RemoveChildren<TankTrack>(block);
@@ -169,15 +178,15 @@ namespace CustomModules
 							newObject.tag = "TankBlock";
 
 							
-							bool hasRefOffset = TryGetTokenMultipleKeys(jData, out JToken jOffset, "ReferenceOffset", "PrefabOffset", "PrefabPosition");
-							bool hasRefRotation = TryGetTokenMultipleKeys(jData, out JToken jEuler, "ReferenceRotationOffset", "PrefabRotation");
-							bool hasRefScale = TryGetTokenMultipleKeys(jData, out JToken jScale, "ReferenceScale", "PrefabScale");
+							bool hasRefOffset = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jOffset, "ReferenceOffset", "PrefabOffset", "PrefabPosition");
+							bool hasRefRotation = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jEuler, "ReferenceRotationOffset", "PrefabRotation");
+							bool hasRefScale = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jScale, "ReferenceScale", "PrefabScale");
 
 							if (hasRefOffset || hasRefRotation || hasRefScale)
 							{
-								Vector3 offset = hasRefOffset ? GetVector3(jOffset) : Vector3.zero;
-								Vector3 scale = hasRefScale ? GetVector3(jScale) : Vector3.one;
-								Vector3 euler = hasRefRotation ? GetVector3(jEuler) : Vector3.zero;
+								Vector3 offset = hasRefOffset ? CustomParser.GetVector3(jOffset) : Vector3.zero;
+								Vector3 scale = hasRefScale ? CustomParser.GetVector3(jScale) : Vector3.one;
+								Vector3 euler = hasRefRotation ? CustomParser.GetVector3(jEuler) : Vector3.zero;
 
 								foreach (Transform child in newObject.transform)
 								{
@@ -201,7 +210,7 @@ namespace CustomModules
 						}
 						else
 						{
-							Debug.LogError($"[Nuterra] Failed to find GamePrefabReference {referenceBlock}");
+							LoggingWrapper.LogError($"[Nuterra] Failed to find GamePrefabReference {referenceBlock}");
 						}
 					}
 					#endregion
@@ -219,13 +228,13 @@ namespace CustomModules
 
 					// ------------------------------------------------------
 					#region Additional References
-					if (TryGetStringMultipleKeys(jData, out string referenceExplosion, "DeathExplosionReference", "ExplosionReference"))
+					if (CustomParser.TryGetStringMultipleKeys(jData, out string referenceExplosion, "DeathExplosionReference", "ExplosionReference"))
 					{
 						GameObject refBlock = TTReferences.FindBlockReferenceFromString(referenceExplosion);
 						if (refBlock != null)
 						{
 							moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
-							Debug.Log($"[Nuterra] Swapped death explosion for {refBlock}");
+							LoggingWrapper.Log($"[Nuterra] Swapped death explosion for {refBlock}");
 						}
 					}
 					#endregion
@@ -233,7 +242,7 @@ namespace CustomModules
 
 					// ------------------------------------------------------
 					#region Tweaks
-					Debug.Log("[Nuterra] Handling block cells");
+					LoggingWrapper.Log("[Nuterra] Handling block cells");
 					// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
 					bool usedBlockExtents = false;
 					bool cellsProcessed = false;
@@ -241,7 +250,7 @@ namespace CustomModules
 
 					// Use the very first cell processor that gives you a non-empty result
 					// CellMap / CellsMap
-					if (TryGetTokenMultipleKeys(jData, out JToken jCellMap, "CellMap", "CellsMap"))
+					if (CustomParser.TryGetTokenMultipleKeys(jData, out JToken jCellMap, "CellMap", "CellsMap"))
 					{
 						string[][] ZYXCells = jCellMap.ToObject<string[][]>();
 						List<IntVector3> cells = new List<IntVector3>();
@@ -278,7 +287,7 @@ namespace CustomModules
 						List<IntVector3> filledCells = new List<IntVector3>();
 						foreach (JObject jCell in (JArray)jCells)
 						{
-							filledCells.Add(GetVector3Int(jCell));
+							filledCells.Add(CustomParser.GetVector3Int(jCell));
 						}
 						if (filledCells.Count != 0 || (block.filledCells == null || block.filledCells.Length == 0))
 						{
@@ -291,7 +300,7 @@ namespace CustomModules
 					if (!cellsProcessed && jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
 					{
 						List<IntVector3> filledCells = new List<IntVector3>();
-						size = GetVector3Int(jExtents);
+						size = CustomParser.GetVector3Int(jExtents);
 
 						for (int i = 0; i < size.x; i++)
 						{
@@ -305,7 +314,7 @@ namespace CustomModules
 						}
 						block.filledCells = filledCells.ToArray();
 						usedBlockExtents = true;
-						Debug.Log("[Nuterra] Overwrote BlockExtents");
+						LoggingWrapper.Log("[Nuterra] Overwrote BlockExtents");
 					}
 
 					// Handle failure to get cells
@@ -314,7 +323,7 @@ namespace CustomModules
 						block.filledCells = new IntVector3[] { new IntVector3 (0, 0, 0) };
                     }
 
-					Debug.Log("[Nuterra] Handling block APs");
+					LoggingWrapper.Log("[Nuterra] Handling block APs");
 					// APs
 					bool manualAPs = false;
 					if (jData.TryGetValue("APs", out JToken jAPList) && jAPList.Type == JTokenType.Array)
@@ -322,7 +331,7 @@ namespace CustomModules
 						List<Vector3> aps = new List<Vector3>();
 						foreach (JToken token in (JArray)jAPList)
 						{
-							aps.Add(GetVector3(token));
+							aps.Add(CustomParser.GetVector3(token));
 						}
 						block.attachPoints = aps.ToArray();
 						manualAPs = block.attachPoints.Length > 0;
@@ -378,15 +387,15 @@ namespace CustomModules
 						block.attachPoints = aps.ToArray();
 					}
 
-					Debug.Log("[Nuterra] Handling block stats");
+					LoggingWrapper.Log("[Nuterra] Handling block stats");
 					// Some basic block stats
-					damageable.DamageableType = (ManDamage.DamageableType)TryParse(jData, "DamageableType", (int)damageable.DamageableType);
-					if(TryGetFloatMultipleKeys(jData, out float fragility, moduleDamage.m_DamageDetachFragility, "DetachFragility", "Fragility"))
+					damageable.DamageableType = (ManDamage.DamageableType)CustomParser.LenientTryParseInt(jData, "DamageableType", (int)damageable.DamageableType);
+					if(CustomParser.TryGetFloatMultipleKeys(jData, out float fragility, moduleDamage.m_DamageDetachFragility, "DetachFragility", "Fragility"))
 					{
 						moduleDamage.m_DamageDetachFragility = fragility;
 					}
 
-					block.m_DefaultMass = TryParse(jData, "Mass", block.m_DefaultMass);
+					block.m_DefaultMass = CustomParser.LenientTryParseFloat(jData, "Mass", block.m_DefaultMass);
 
 					// Emission Mode
 					ModuleCustomBlock.EmissionMode mode = ModuleCustomBlock.EmissionMode.None;
@@ -397,7 +406,7 @@ namespace CustomModules
 					}
 
 					// Center of Mass
-					if (TryGetTokenMultipleKeys(jData, out JToken comToken, new string[] { "CenterOfMass", "CentreOfMass" }))
+					if (CustomParser.TryGetTokenMultipleKeys(jData, out JToken comToken, new string[] { "CenterOfMass", "CentreOfMass" }))
 					{
 						Transform comTrans = block.transform.Find("CentreOfMass");
 						if (comTrans == null)
@@ -408,7 +417,7 @@ namespace CustomModules
 							comTrans.localRotation = Quaternion.identity;
 						}
 
-						Vector3 CenterOfMass = GetVector3(comToken);
+						Vector3 CenterOfMass = CustomParser.GetVector3(comToken);
 						comTrans.localPosition = CenterOfMass;
 
 						// TODO: Weird thing about offseting colliders from Nuterra
@@ -462,7 +471,7 @@ namespace CustomModules
 								def.m_Icon = texture;
 							else
 							{
-								Debug.LogWarning($"Found unknown object type {obj.GetType()} for icon override for {block.name}");
+								LoggingWrapper.LogWarning($"Found unknown object type {obj.GetType()} for icon override for {block.name}");
 							}
 						}
 					}
@@ -514,7 +523,7 @@ namespace CustomModules
 					#endregion
 					// ------------------------------------------------------
 
-					Debug.Log("[Nuterra] Handling SubObjects");
+					LoggingWrapper.Log("[Nuterra] Handling SubObjects");
 					// Start recursively adding objects with the root. 
 					// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
 					RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
@@ -553,12 +562,12 @@ namespace CustomModules
 			}
 			catch(Exception e)
 			{
-				Debug.LogError($"[Nuterra] Caught exception {e}");
+				LoggingWrapper.LogError($"[Nuterra] Caught exception {e}");
 				return false;
 			}
 		}
 
-        public override bool InjectBlock(int blockID, ModdedBlockDefinition def, JToken jToken)
+		public override bool InjectBlock(int blockID, ModdedBlockDefinition def, JToken jToken)
         {
 			JObject jData = (JObject)jToken;
 			RecipeTable.Recipe recipe = ParseRecipe(jData, def.m_Corporation, blockID, out int price);
@@ -569,22 +578,22 @@ namespace CustomModules
 			}
 			else
 			{
-				Debug.Log("[Nuterra] Unable to inject Recipe");
+				LoggingWrapper.Log("[Nuterra] Unable to inject Recipe");
 			}
 			return base.InjectBlock(blockID, def, jToken);
         }
 
         private void RecursivelyAddSubObject(TankBlock block, ModContents mod, Transform targetTransform, JObject jData, Material defaultMaterial, bool isNewSubObject)
 		{
-			Debug.Log("[Nuterra] Called RecursivelyAddSubObject");
+			LoggingWrapper.Log("[Nuterra] Called RecursivelyAddSubObject");
 
 			// Material - Used in the next step
 			Material mat = null;
 
-			bool hasMaterial = TryGetStringMultipleKeys(jData, out string materialName, "MaterialName", "MeshMaterialName");
-			bool hasAlbedo = TryGetStringMultipleKeys(jData, out string albedoName, "MeshTextureName", "TextureName");
-			bool hasGloss = TryGetStringMultipleKeys(jData, out string glossName, "MetallicTextureName", "GlossTextureName", "MeshGlossTextureName");
-			bool hasEmissive = TryGetStringMultipleKeys(jData, out string emissiveName, "EmissionTextureName", "MeshEmissionTextureName");
+			bool hasMaterial = CustomParser.TryGetStringMultipleKeys(jData, out string materialName, "MaterialName", "MeshMaterialName");
+			bool hasAlbedo = CustomParser.TryGetStringMultipleKeys(jData, out string albedoName, "MeshTextureName", "TextureName");
+			bool hasGloss = CustomParser.TryGetStringMultipleKeys(jData, out string glossName, "MetallicTextureName", "GlossTextureName", "MeshGlossTextureName");
+			bool hasEmissive = CustomParser.TryGetStringMultipleKeys(jData, out string emissiveName, "EmissionTextureName", "MeshEmissionTextureName");
 			bool hasAnyOverrides = hasAlbedo || hasGloss || hasEmissive || hasMaterial;
 			bool isSubObject = targetTransform != block.transform;
 
@@ -652,22 +661,30 @@ namespace CustomModules
 			// MeshName & ColliderMeshName Override
 			Mesh mesh = null;
 			Mesh colliderMesh = null;
-			bool supressBoxColliderFallback = TryParse(jData, "SupressBoxColliderFallback", TryParse(jData, "NoBoxCollider", false));
-			if (TryGetStringMultipleKeys(jData, out string meshName, "MeshName", "ModelName"))
+			bool supressBoxColliderFallback = CustomParser.LenientTryParseBool(jData, "SupressBoxColliderFallback", CustomParser.LenientTryParseBool(jData, "NoBoxCollider", false));
+			bool RemoveExistingMesh = false;
+			if (CustomParser.TryGetStringMultipleKeysAllowNull(jData, out string meshName, "MeshName", "ModelName"))
 			{
-				foreach(UnityEngine.Object obj in mod.FindAllAssets(meshName))
+				if (meshName != null)
 				{
-					if (obj != null)
+					foreach (UnityEngine.Object obj in mod.FindAllAssets(meshName))
 					{
-						if (obj is Mesh)
-							mesh = (Mesh)obj;
-						else if (obj is GameObject)
-							mesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
+						if (obj != null)
+						{
+							if (obj is Mesh)
+								mesh = (Mesh)obj;
+							else if (obj is GameObject)
+								mesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
+						}
 					}
+					Debug.Assert(mesh != null, $"[Nuterra] Failed to find mesh with name {meshName}");
 				}
-				Debug.Assert(mesh != null, $"[Nuterra] Failed to find mesh with name {meshName}");
+				else
+                {
+					RemoveExistingMesh = true;
+                }
 			}
-			if (TryGetStringMultipleKeys(jData, out string meshColliderName, "ColliderMeshName", "MeshColliderName"))
+			if (CustomParser.TryGetStringMultipleKeys(jData, out string meshColliderName, "ColliderMeshName", "MeshColliderName"))
 			{
 				foreach (UnityEngine.Object obj in mod.FindAllAssets(meshColliderName))
 				{
@@ -678,6 +695,19 @@ namespace CustomModules
 				}
 				Debug.Assert(colliderMesh != null, $"[Nuterra] Failed to find collider mesh with name {meshColliderName}");
 			}
+
+			// Remove the existing mesh if we set it to null
+			/*
+			if (RemoveExistingMesh) {
+				if (targetTransform.gameObject.GetComponent<MeshFilter>() is MeshFilter mf)
+				{
+					GameObject.DestroyImmediate(mf);
+				}
+				if (targetTransform.gameObject.GetComponent<MeshRenderer>() is MeshRenderer mr)
+				{
+					GameObject.Destroy(mr);
+				}
+			} */
 
 			// This is the only bit where the root object majorly differs from subobjects
 			if (!isSubObject)
@@ -699,7 +729,7 @@ namespace CustomModules
 				}
 				else // If we don't want to swap out the mesh we may still want to swap out the properties of existing renderers
 				{
-					bool forceEmissive = TryParse(jData, "ForceEmission", false);
+					bool forceEmissive = CustomParser.LenientTryParseBool(jData, "ForceEmission", false);
 					foreach(Renderer renderer in targetTransform.GetComponents<Renderer>())
 					{
 						renderer.sharedMaterial = mat;
@@ -720,16 +750,18 @@ namespace CustomModules
 					mc.sharedMaterial = physMat;
 				}
 				// If we want a box collider, try to make one from our mesh
-				bool makeBoxCollider = GetBoolMultipleKeys(jData, false, "MakeBoxCollider", "GenerateBoxCollider");
+				bool makeBoxCollider = CustomParser.GetBoolMultipleKeys(jData, false, "MakeBoxCollider", "GenerateBoxCollider");
 				if(makeBoxCollider)
 				{
-					Debug.Log($"[Nuterra] Generating box collider for {block.name}");
+					LoggingWrapper.Log($"[Nuterra {NuterraDeserializer.DeserializingBlock}] Generating box collider for {targetTransform.name}");
 					BoxCollider bc = targetTransform.gameObject.EnsureComponent<BoxCollider>();
 					bc.sharedMaterial = physMat;
 					if (mesh != null)
 					{
 						mesh.RecalculateBounds();
-						bc.size = mesh.bounds.size * 0.9f;
+						Vector3 size = mesh.bounds.size * 0.9f;
+						LoggingWrapper.Log($"[Nuterra {NuterraDeserializer.DeserializingBlock}] - Adding BoxCollider of size {size}");
+						bc.size = size;
 						bc.center = mesh.bounds.center;
 					}
 					else 
@@ -739,10 +771,10 @@ namespace CustomModules
 					}
 				}
 				// Weird option from TTQMM that has a fixed size sphere
-				bool makeSphereCollider = TryParse(jData, "MakeSphereCollider", false);
+				bool makeSphereCollider = CustomParser.LenientTryParseBool(jData, "MakeSphereCollider", false);
 				if(makeSphereCollider)
 				{
-					Debug.Log($"[Nuterra] Generating sphere collider for {block.name}");
+					LoggingWrapper.Log($"[Nuterra] Generating sphere collider for {block.name}");
 					SphereCollider sc = targetTransform.gameObject.EnsureComponent<SphereCollider>();
 					sc.radius = 0.5f;
 					sc.center = Vector3.zero;
@@ -752,7 +784,7 @@ namespace CustomModules
 
 			// ------------------------------------------------------
 			#region Deserializers
-			if(TryGetTokenMultipleKeys(jData, out JToken jDeserialObj, "Deserializer", "JSONBLOCK") && jDeserialObj.Type == JTokenType.Object)
+			if(CustomParser.TryGetTokenMultipleKeys(jData, out JToken jDeserialObj, "Deserializer", "JSONBLOCK") && jDeserialObj.Type == JTokenType.Object)
 			{
 				JObject jDeserializer = (JObject)jDeserialObj;
 
@@ -772,20 +804,20 @@ namespace CustomModules
 					{
 						JObject jSubObject = (JObject)token;
 						GameObject subObject;
-						if (TryGetStringMultipleKeys(jSubObject, out string subObjName, "SubOverrideName", "OverrideName", "ObjectName"))
+						if (CustomParser.TryGetStringMultipleKeys(jSubObject, out string subObjName, "SubOverrideName", "OverrideName", "ObjectName"))
 						{
 							subObject = (targetTransform.RecursiveFindWithProperties(subObjName) as Component)?.gameObject;
 						}
 						else
 						{
-							Debug.LogError($"[Nuterra] Failed to find SubOverrideName tag in sub object JSON - assuming default transform");
+							LoggingWrapper.LogError($"[Nuterra] Failed to find SubOverrideName tag in sub object JSON - assuming default transform");
 							subObject = targetTransform.gameObject;
 						}
 
 						bool creatingNew = subObject == null;
 						if (subObject != null)
 						{
-							if (TryGetTokenMultipleKeys(jSubObject, out JToken jLayer, "Layer", "PhysicsLayer") && jLayer.Type == JTokenType.Integer)
+							if (CustomParser.TryGetTokenMultipleKeys(jSubObject, out JToken jLayer, "Layer", "PhysicsLayer") && jLayer.Type == JTokenType.Integer)
 								subObject.layer = jLayer.ToObject<int>();
 						}
 						else // Reference was not matched, so we want to add a new subobject
@@ -798,14 +830,14 @@ namespace CustomModules
 							subObject.transform.localPosition = Vector3.zero;
 							subObject.transform.localRotation = Quaternion.identity;
 
-							if (TryGetTokenMultipleKeys(jSubObject, out JToken jLayer, "Layer", "PhysicsLayer") && jLayer.Type == JTokenType.Integer)
+							if (CustomParser.TryGetTokenMultipleKeys(jSubObject, out JToken jLayer, "Layer", "PhysicsLayer") && jLayer.Type == JTokenType.Integer)
 								subObject.layer = jLayer.ToObject<int>();
 							else
 								subObject.layer = 8; // Globals.inst.layerTank;
 						}
 
 						// Target acquired, lets tweak a few things
-						bool destroyColliders = GetBoolMultipleKeys(jSubObject, false, "DestroyExistingColliders", "DestroyColliders");
+						bool destroyColliders = CustomParser.GetBoolMultipleKeys(jSubObject, false, "DestroyExistingColliders", "DestroyColliders");
 						if (destroyColliders)
 						{
 							foreach (Collider col in subObject.GetComponents<Collider>())
@@ -814,7 +846,7 @@ namespace CustomModules
 							UnityEngine.Object.DestroyImmediate(subObject.GetComponentInParents<ColliderSwapper>());
 						}
 
-						bool destroyRenderers = GetBoolMultipleKeys(jSubObject, false, "DestroyExistingRenderer", "DestroyExistingRenderers", "DestroyRenderers");
+						bool destroyRenderers = CustomParser.GetBoolMultipleKeys(jSubObject, false, "DestroyExistingRenderer", "DestroyExistingRenderers", "DestroyRenderers");
 						if (destroyRenderers)
 						{
 							foreach (Renderer renderer in subObject.GetComponents<Renderer>())
@@ -833,12 +865,12 @@ namespace CustomModules
 						}
 
 						// Optional resize settings
-						if (TryGetTokenMultipleKeys(jSubObject, out JToken jPos, "SubPosition", "Position") && jPos.Type == JTokenType.Object)
-							subObject.transform.localPosition = GetVector3(jPos);
-						if (TryGetTokenMultipleKeys(jSubObject, out JToken jEuler, "SubRotation", "Rotation") && jEuler.Type == JTokenType.Object)
-							subObject.transform.localEulerAngles = GetVector3(jEuler);
-						if (TryGetTokenMultipleKeys(jSubObject, out JToken jScale, "SubScale", "Scale") && jScale.Type == JTokenType.Object)
-							subObject.transform.localScale = GetVector3(jScale);
+						if (CustomParser.TryGetTokenMultipleKeys(jSubObject, out JToken jPos, "SubPosition", "Position") && jPos.Type == JTokenType.Object)
+							subObject.transform.localPosition = CustomParser.GetVector3(jPos);
+						if (CustomParser.TryGetTokenMultipleKeys(jSubObject, out JToken jEuler, "SubRotation", "Rotation") && jEuler.Type == JTokenType.Object)
+							subObject.transform.localEulerAngles = CustomParser.GetVector3(jEuler);
+						if (CustomParser.TryGetTokenMultipleKeys(jSubObject, out JToken jScale, "SubScale", "Scale") && jScale.Type == JTokenType.Object)
+							subObject.transform.localScale = CustomParser.GetVector3(jScale);
 
 						RecursivelyAddSubObject(block, mod, subObject.transform, jSubObject, matForSubObject, creatingNew);
 					}
@@ -892,323 +924,6 @@ namespace CustomModules
 				UnityEngine.Object.DestroyImmediate(c);
 		}
 
-		private Dictionary<string, HashSet<string>> GetCasePropertyMap(JObject jData)
-        {
-			Dictionary<string, HashSet<string>> lowercaseMap = new Dictionary<string, HashSet<string>>();
-			foreach (JProperty property in jData.Properties())
-			{
-				string lower = property.Name.ToLower();
-				if (lowercaseMap.ContainsKey(lower))
-                {
-					lowercaseMap[lower].Add(property.Name);
-                }
-				else
-                {
-					lowercaseMap[lower] = new HashSet<string> { property.Name };
-                }
-			}
-			return lowercaseMap;
-		}
-		private int CompareStringPrefix(string a, string b)
-        {
-			if (a is null || b is null)
-            {
-				return 0;
-            }
-			int score = 0;
-			for (int i = 0; i < Math.Min(a.Length, b.Length); i++)
-            {
-				if (a[i] == b[i])
-                {
-					score++;
-                }
-				else
-                {
-					return score;
-                }
-            }
-			return score;
-        }
-		private string GetClosestString(string value, HashSet<string> values)
-        {
-			int bestScore = 0;
-			string bestTarget = values.First();
-			foreach (string target in values)
-            {
-				int score = CompareStringPrefix(value, target);
-				if (score > bestScore)
-                {
-					bestScore = score;
-					bestTarget = target;
-                }
-            }
-			return bestTarget;
-        }
-
-		private Vector3 GetVector3(JToken token)
-		{
-			Vector3 result = Vector3.zero;
-			if (token.Type == JTokenType.Object)
-			{
-				JObject jData = (JObject)token;
-
-				if (jData.TryGetValue("x", out JToken xToken) && (xToken.Type == JTokenType.Integer || xToken.Type == JTokenType.Float))
-				{
-					result.x = xToken.ToObject<float>();
-
-				}
-				else if (jData.TryGetValue("X", out xToken) && (xToken.Type == JTokenType.Integer || xToken.Type == JTokenType.Float))
-				{
-					result.x = xToken.ToObject<float>();
-				}
-
-				if (jData.TryGetValue("y", out JToken yToken) && (yToken.Type == JTokenType.Integer || yToken.Type == JTokenType.Float))
-				{
-					result.y = yToken.ToObject<float>();
-
-				}
-				else if (jData.TryGetValue("Y", out yToken) && (yToken.Type == JTokenType.Integer || yToken.Type == JTokenType.Float))
-				{
-					result.y = yToken.ToObject<float>();
-				}
-
-				if (jData.TryGetValue("z", out JToken zToken) && (zToken.Type == JTokenType.Integer || zToken.Type == JTokenType.Float))
-				{
-					result.z = zToken.ToObject<float>();
-
-				}
-				else if (jData.TryGetValue("Z", out zToken) && (zToken.Type == JTokenType.Integer || zToken.Type == JTokenType.Float))
-				{
-					result.z = zToken.ToObject<float>();
-				}
-			}
-			else if (token.Type == JTokenType.Array)
-            {
-				JArray jList = (JArray)token;
-				for (int i = 0; i < Math.Min(3, jList.Count); i++)
-                {
-					switch (i)
-                    {
-						case 0:
-							result.x = jList[i].ToObject<float>();
-							break;
-						case 1:
-							result.y = jList[i].ToObject<float>();
-							break;
-						case 2:
-							result.z = jList[i].ToObject<float>();
-							break;
-                    }
-                }
-			}
-			return result;
-		}
-
-		private IntVector3 GetVector3Int(JToken token)
-		{
-			IntVector3 result = IntVector3.zero;
-			if (token.Type == JTokenType.Object)
-            {
-				JObject jData = (JObject)token;
-
-				if (jData.TryGetValue("x", out JToken xToken) && xToken.Type == JTokenType.Integer)
-                {
-					result.x = xToken.ToObject<int>();
-
-				}
-				else if (jData.TryGetValue("X", out xToken) && xToken.Type == JTokenType.Integer)
-				{
-					result.x = xToken.ToObject<int>();
-				}
-
-				if (jData.TryGetValue("y", out JToken yToken) && yToken.Type == JTokenType.Integer)
-				{
-					result.y = yToken.ToObject<int>();
-
-				}
-				else if (jData.TryGetValue("Y", out yToken) && yToken.Type == JTokenType.Integer)
-				{
-					result.y = yToken.ToObject<int>();
-				}
-
-				if (jData.TryGetValue("z", out JToken zToken) && zToken.Type == JTokenType.Integer)
-				{
-					result.z = zToken.ToObject<int>();
-
-				}
-				else if (jData.TryGetValue("Z", out zToken) && zToken.Type == JTokenType.Integer)
-				{
-					result.z = zToken.ToObject<int>();
-				}
-			}
-			else if (token.Type == JTokenType.Array)
-			{
-				JArray jList = (JArray)token;
-				for (int i = 0; i < Math.Min(3, jList.Count); i++)
-				{
-					switch (i)
-					{
-						case 0:
-							result.x = jList[i].ToObject<int>();
-							break;
-						case 1:
-							result.y = jList[i].ToObject<int>();
-							break;
-						case 2:
-							result.z = jList[i].ToObject<int>();
-							break;
-					}
-				}
-			}
-			return result;
-		}
-
-		private bool TryGetFloatMultipleKeys(JObject jData, out float result, float defaultValue, params string[] args)
-		{
-			foreach (string arg in args)
-			{
-				if (jData.TryGetValue(arg, out JToken jToken))
-				{
-					if (jToken.Type == JTokenType.Float)
-					{
-						result = jToken.ToObject<float>();
-						return true;
-					}
-					else if (jToken.Type == JTokenType.Integer)
-					{
-						result = jToken.ToObject<int>();
-						return true;
-					}
-				}
-			}
-			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
-			foreach (string arg in args)
-			{
-				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
-				{
-					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken))
-					{
-						if (jToken.Type == JTokenType.Float)
-						{
-							result = jToken.ToObject<float>();
-							return true;
-						}
-						else if (jToken.Type == JTokenType.Integer)
-						{
-							result = jToken.ToObject<int>();
-							return true;
-						}
-					}
-				}
-			}
-			result = defaultValue;
-			return false;
-		}
-
-		private bool TryGetTokenMultipleKeys(JObject jData, out JToken token, params string[] args)
-		{
-			foreach (string arg in args)
-			{
-				if (jData.TryGetValue(arg, out JToken jToken))
-				{
-					token = jToken;
-					return true;
-				}
-			}
-			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
-			foreach (string arg in args)
-			{
-				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
-				{
-					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken))
-					{
-						token = jToken;
-						return true;
-					}
-				}
-			}
-			token = null;
-			return false;
-		}
-
-		private bool TryGetBool(JObject jData, bool defaultValue, string key)
-        {
-			if (jData.TryGetValue(key, out JToken jToken) && jToken.Type == JTokenType.Boolean)
-			{
-				return jToken.ToObject<bool>();
-			}
-			else
-            {
-				Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
-				if (lowerMap.TryGetValue(key.ToLower(), out HashSet<string> values))
-                {
-					if (jData.TryGetValue(GetClosestString(key, values), out jToken) && jToken.Type == JTokenType.Boolean)
-					{
-						return jToken.ToObject<bool>();
-					}
-				}
-			}
-			return defaultValue;
-		}
-
-		private bool GetBoolMultipleKeys(JObject jData, bool defaultValue, params string[] args)
-		{
-			foreach (string arg in args)
-			{
-				if (jData.TryGetValue(arg, out JToken jToken) && jToken.Type == JTokenType.Boolean)
-				{
-					return jToken.ToObject<bool>();
-				}
-			}
-			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
-			foreach (string arg in args)
-			{
-				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
-				{
-					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken) && jToken.Type == JTokenType.Boolean)
-					{
-						return jToken.ToObject<bool>();
-					}
-				}
-			}
-			return defaultValue;
-		}
-
-		private bool TryGetStringMultipleKeys(JObject jData, out string result, params string[] args)
-		{
-			foreach(string arg in args)
-			{
-				if(jData.TryGetValue(arg, out JToken jToken) && jToken.Type == JTokenType.String)
-				{
-					string test = jToken.ToString();
-					if (test != "null")
-					{
-						result = test;
-						return true;
-					}
-				}
-			}
-			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
-			foreach (string arg in args)
-			{
-				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
-				{
-					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken) && jToken.Type == JTokenType.String)
-					{
-						string test = jToken.ToString();
-						if (test != "null")
-						{
-							result = test;
-							return true;
-						}
-					}
-				}
-			}
-
-			result = null;
-			return false;
-		}
-
 		// This is the JSON key that we check for in custom blocks
 		public override string GetModuleKey()
 		{
@@ -1234,12 +949,12 @@ namespace CustomModules
 				{
 					RecipeBuilder[chunk].m_Quantity += Count;
 				}
-				Debug.Log($"[Nuterra] Chunk of type {chunk} added to recipe");
+				LoggingWrapper.Log($"[Nuterra] Chunk of type {chunk} added to recipe");
 				return RecipeManager.inst.GetChunkPrice(chunk);
 			}
 			else
 			{
-				Console.WriteLine("No ChunkTypes found matching given name, nor could parse as ID (int): " + Type);
+				LoggingWrapper.Log("No ChunkTypes found matching given name, nor could parse as ID (int): " + Type);
 			}
 			return 0;
 		}

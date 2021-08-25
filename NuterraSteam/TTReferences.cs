@@ -78,7 +78,7 @@ namespace CustomModules
 				foreach (Material mat in Resources.FindObjectsOfTypeAll<Material>())
 				{
 					sMaterials[mat.name] = mat;
-					Console.WriteLine("[Nuterra] Regitering MATERIAL " + mat.name);
+					LoggingWrapper.Log("[Nuterra] Regitering MATERIAL " + mat.name);
 				}
 
 				foreach(Shader shader in Resources.FindObjectsOfTypeAll<Shader>())
@@ -99,7 +99,7 @@ namespace CustomModules
 			int separator = blockPath.IndexOfAny(new char[] { '.', '/' });
 			if (separator == -1)
 			{
-				Console.WriteLine("Reference path is invalid! Expected block name and path to GameObject (" + blockPath + ")");
+				LoggingWrapper.Log("Reference path is invalid! Expected block name and path to GameObject (" + blockPath + ")");
 				return false;
 			}
 			string blockReferenceString = blockPath.Substring(0, separator);
@@ -112,7 +112,7 @@ namespace CustomModules
 
 			if (refBlock == null)
 			{
-				Console.WriteLine("Reference block is nonexistent! (" + blockReferenceString + ")");
+				LoggingWrapper.Log("Reference block is nonexistent! (" + blockReferenceString + ")");
 				return false;
 			}
 			string sRefPath = blockPath.Substring(separator + 1);
@@ -136,7 +136,7 @@ namespace CustomModules
 			*/
 			if (reference == null)
 			{
-				Console.WriteLine("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
+				LoggingWrapper.Log("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
 				return false;
 			}
 			return true;
@@ -208,7 +208,7 @@ namespace CustomModules
 				return result;
 			}
 
-			Console.WriteLine($"[Nuterra] FAILED to find material with name " + name);
+			LoggingWrapper.Log($"[Nuterra] FAILED to find material with name " + name);
 			return null;
 		}
 
@@ -241,7 +241,7 @@ namespace CustomModules
 				}
 				catch (Exception e)
                 {
-					Console.WriteLine($"[Nuterra] ERROR caching assets of type {type}");
+					LoggingWrapper.Log($"[Nuterra] ERROR caching assets of type {type}");
                 }
 			}
 

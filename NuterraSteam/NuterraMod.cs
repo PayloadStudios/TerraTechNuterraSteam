@@ -28,11 +28,11 @@ namespace CustomModules
             // so we'll strip them out ourselves;
             input = Regex.Replace(input, @"^\s*//.*$", "", RegexOptions.Multiline);  // removes line comments like this
             input = Regex.Replace(input, @"/\*(\s|\S)*?\*/", "", RegexOptions.Multiline); /* comments like this */
-            // Console.WriteLine(input);
+            // LoggingWrapper.Log(input);
             input = Regex.Replace(input, @"([,\[\{\]\}\." + Regex.Escape("\"") + @"0-9]|null)\s*//[^\n]*\n", "$1\n", RegexOptions.Multiline);    // Removes mixed JSON comments
-            // Console.WriteLine(input);
+            // LoggingWrapper.Log(input);
             input = Regex.Replace(input, @",\s*([\}\]])", "\n$1", RegexOptions.Multiline);  // remove trailing ,
-            // Console.WriteLine(input);
+            // LoggingWrapper.Log(input);
             return input.Replace("JSONBLOCK", "Deserializer");
         }
 
@@ -64,18 +64,18 @@ namespace CustomModules
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to read Block {blockDef.m_BlockDisplayName} ({blockDef.m_BlockIdentifier}) json:\n{blockDef.m_Json.text}");
-                Console.WriteLine(e);
+                LoggingWrapper.Log($"Failed to read Block {blockDef.m_BlockDisplayName} ({blockDef.m_BlockIdentifier}) json:\n{blockDef.m_Json.text}");
+                LoggingWrapper.LogError(e);
             }
         }
 
         public static bool TryGetSessionID(int legacyId, out int newId)
         {
             /*
-             * Console.WriteLine($"Trying to get key {legacyId}");
+             * LoggingWrapper.Log($"Trying to get key {legacyId}");
             foreach (int key in legacyToSessionIds.Keys)
             {
-                Console.WriteLine(key);
+                LoggingWrapper.Log(key);
             }
             */
             return legacyToSessionIds.TryGetValue(legacyId, out newId);
@@ -83,6 +83,7 @@ namespace CustomModules
 
         public override void EarlyInit()
         {
+            LoggingWrapper.Init();
         }
 
         public override bool HasEarlyInit()
@@ -112,7 +113,7 @@ namespace CustomModules
             {
                 if (!BlockRotationTable.m_BlockRotationGroupIndex.Remove(lookup))
                 {
-                    Console.WriteLine("[NuterraSteam] ERROR - FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
+                    LoggingWrapper.Log("[NuterraSteam] ERROR - FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
                 }
             }
             addedRotationGroups.Clear();

@@ -30,11 +30,11 @@ namespace CustomModules
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var child = transform.GetChild(i);
-				//Console.WriteLine(child.name);
+				//LoggingWrapper.Log(child.name);
 				if (child.name == cName)
 				{
 					HierarchyBuildup += "/" + cName;
-					//Console.WriteLine(HierarchyBuildup + "  " + NameOfChild);
+					//LoggingWrapper.Log(HierarchyBuildup + "  " + NameOfChild);
 					if (HierarchyBuildup.EndsWith(NameOfChild))
 					{
 						return child;
@@ -65,7 +65,7 @@ namespace CustomModules
 					return tresult;
 				}
 				Transform result = transform;
-				Console.Write(transform.name);
+				// Console.Write(transform.name);
 
 				string propertyPath = nameOfProperty;
 				while (true)
@@ -74,7 +74,7 @@ namespace CustomModules
 					if (propIndex == -1)
 					{
 						var t = result.RecursiveFind(propertyPath);
-						Console.WriteLine($"<FindTrans:{propertyPath}>{(t == null ? "EMPTY" : "RETURN")}");
+						LoggingWrapper.Log($"<FindTrans:{propertyPath}>{(t == null ? "EMPTY" : "RETURN")}");
 						if (t == null && fallback != null && fallback != transform)
 							return fallback.RecursiveFindWithProperties(nameOfProperty);
 						return t;
@@ -84,11 +84,11 @@ namespace CustomModules
 					if (lastIndex > 0)
 					{
 						string transPath = propertyPath.Substring(0, lastIndex);
-						Console.Write($"<Find:{transPath}>");
+						// Console.Write($"<Find:{transPath}>");
 						result = result.RecursiveFind(transPath);
 						if (result == null)
 						{
-							Console.WriteLine("EMPTY");
+							LoggingWrapper.Log("EMPTY");
 							if (fallback != null && fallback != transform)
 								return fallback.RecursiveFindWithProperties(nameOfProperty);
 							return null;
@@ -100,27 +100,27 @@ namespace CustomModules
 					else propPath = propertyPath.Substring(propIndex, Math.Max(reIndex - propIndex, 0));
 					string propClass = propertyPath.Substring(lastIndex + 1, Math.Max(propIndex - lastIndex - 1, 0));
 
-					Console.Write($"<Class:{propClass}>");
+					// Console.Write($"<Class:{propClass}>");
 					Component component = result.gameObject.GetComponentWithIndex(propClass);
 					if (component == null)
 					{
-						Console.WriteLine("EMPTY : Cannot find Component " + propClass + "!");
+						LoggingWrapper.Log("EMPTY : Cannot find Component " + propClass + "!");
 						if (fallback != null && fallback != transform)
 							return fallback.RecursiveFindWithProperties(nameOfProperty);
-						Console.WriteLine(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
-						Console.WriteLine("RecursiveFindWithProperties failed!");
+						LoggingWrapper.Log(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
+						LoggingWrapper.Log("RecursiveFindWithProperties failed!");
 						return null;
 					}
-					Console.Write($"<Property:{propPath}>");
+					// Console.Write($"<Property:{propPath}>");
 					object value = component.GetValueFromPath(propPath);
 
 					if (reIndex == -1)
 					{
-						Console.WriteLine(value == null ? "EMPTY" : "RETURN");
+						LoggingWrapper.Log(value == null ? "EMPTY" : "RETURN");
 						return value;
 					}
 
-					Console.Write("<GetTrans>");
+					// Console.Write("<GetTrans>");
 					result = (value as Component).transform;
 					propertyPath = propertyPath.Substring(reIndex);
 				}
@@ -129,8 +129,8 @@ namespace CustomModules
 			{
 				if (fallback != null && fallback != transform)
 					return fallback.RecursiveFindWithProperties(nameOfProperty);
-				//Console.WriteLine(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
-				//Console.WriteLine("RecursiveFindWithProperties failed! " + E);
+				//LoggingWrapper.Log(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
+				//LoggingWrapper.Log("RecursiveFindWithProperties failed! " + E);
 				return null;
 			}
 		}
@@ -156,7 +156,7 @@ namespace CustomModules
 				{
 					currentObject = tfield.GetValue(currentObject);
 					//if (currentObject == null)
-					//	Console.WriteLine("WARNING: " + tfield.Name + " is null!");
+					//	LoggingWrapper.Log("WARNING: " + tfield.Name + " is null!");
 					if (arr != -1)
 					{
 						//currentObject = tfield.FieldType.
@@ -170,7 +170,7 @@ namespace CustomModules
 					{
 						currentObject = tproperty.GetValue(currentObject, null);
 						//if (currentObject == null)
-						//	Console.WriteLine("WARNING: " + tproperty.Name + " is null!");
+						//	LoggingWrapper.Log("WARNING: " + tproperty.Name + " is null!");
 						currentType = tproperty.PropertyType;
 					}
 					else return null;
