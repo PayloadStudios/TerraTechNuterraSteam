@@ -78,7 +78,7 @@ namespace CustomModules
 				foreach (Material mat in Resources.FindObjectsOfTypeAll<Material>())
 				{
 					sMaterials[mat.name] = mat;
-					LoggingWrapper.Log("[Nuterra] Regitering MATERIAL " + mat.name);
+					LoggingWrapper.Debug("[Nuterra] Registering MATERIAL " + mat.name);
 				}
 
 				foreach(Shader shader in Resources.FindObjectsOfTypeAll<Shader>())
@@ -99,7 +99,7 @@ namespace CustomModules
 			int separator = blockPath.IndexOfAny(new char[] { '.', '/' });
 			if (separator == -1)
 			{
-				LoggingWrapper.Log("Reference path is invalid! Expected block name and path to GameObject (" + blockPath + ")");
+				LoggingWrapper.Info("Reference path is invalid! Expected block name and path to GameObject (" + blockPath + ")");
 				return false;
 			}
 			string blockReferenceString = blockPath.Substring(0, separator);
@@ -112,7 +112,7 @@ namespace CustomModules
 
 			if (refBlock == null)
 			{
-				LoggingWrapper.Log("Reference block is nonexistent! (" + blockReferenceString + ")");
+				LoggingWrapper.Info("Reference block is nonexistent! (" + blockReferenceString + ")");
 				return false;
 			}
 			string sRefPath = blockPath.Substring(separator + 1);
@@ -136,7 +136,7 @@ namespace CustomModules
 			*/
 			if (reference == null)
 			{
-				LoggingWrapper.Log("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
+				LoggingWrapper.Info("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
 				return false;
 			}
 			return true;
@@ -208,7 +208,7 @@ namespace CustomModules
 				return result;
 			}
 
-			LoggingWrapper.Log($"[Nuterra] FAILED to find material with name " + name);
+			LoggingWrapper.Info($"[Nuterra] FAILED to find material with name " + name);
 			return null;
 		}
 
@@ -241,7 +241,7 @@ namespace CustomModules
 				}
 				catch (Exception e)
                 {
-					LoggingWrapper.Log($"[Nuterra] ERROR caching assets of type {type}");
+					LoggingWrapper.Info($"[Nuterra] ERROR caching assets of type {type}");
                 }
 			}
 

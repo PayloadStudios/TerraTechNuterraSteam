@@ -64,8 +64,8 @@ namespace CustomModules
             }
             catch (Exception e)
             {
-                LoggingWrapper.Log($"Failed to read Block {blockDef.m_BlockDisplayName} ({blockDef.m_BlockIdentifier}) json:\n{blockDef.m_Json.text}");
-                LoggingWrapper.LogError(e);
+                LoggingWrapper.Error($"Failed to read Block {blockDef.m_BlockDisplayName} ({blockDef.m_BlockIdentifier}) json:\n{blockDef.m_Json.text}");
+                LoggingWrapper.Error(e);
             }
         }
 
@@ -113,7 +113,7 @@ namespace CustomModules
             {
                 if (!BlockRotationTable.m_BlockRotationGroupIndex.Remove(lookup))
                 {
-                    LoggingWrapper.Log("[NuterraSteam] ERROR - FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
+                    LoggingWrapper.Error("[NuterraSteam] ERROR - FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
                 }
             }
             addedRotationGroups.Clear();

@@ -30,11 +30,11 @@ namespace CustomModules
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var child = transform.GetChild(i);
-				//LoggingWrapper.Log(child.name);
+				LoggingWrapper.Info(child.name);
 				if (child.name == cName)
 				{
 					HierarchyBuildup += "/" + cName;
-					//LoggingWrapper.Log(HierarchyBuildup + "  " + NameOfChild);
+					LoggingWrapper.Info(HierarchyBuildup + "  " + NameOfChild);
 					if (HierarchyBuildup.EndsWith(NameOfChild))
 					{
 						return child;
@@ -65,7 +65,7 @@ namespace CustomModules
 					return tresult;
 				}
 				Transform result = transform;
-				// Console.Write(transform.name);
+				LoggingWrapper.Debug($"Searching for {nameOfProperty} under transform {transform.name}, fallback {fallback}");
 
 				string propertyPath = nameOfProperty;
 				while (true)
@@ -74,7 +74,7 @@ namespace CustomModules
 					if (propIndex == -1)
 					{
 						var t = result.RecursiveFind(propertyPath);
-						LoggingWrapper.Log($"<FindTrans:{propertyPath}>{(t == null ? "EMPTY" : "RETURN")}");
+						LoggingWrapper.Trace($"<FindTrans:{propertyPath}>{(t == null ? "EMPTY" : "RETURN")}");
 						if (t == null && fallback != null && fallback != transform)
 							return fallback.RecursiveFindWithProperties(nameOfProperty);
 						return t;
@@ -84,11 +84,11 @@ namespace CustomModules
 					if (lastIndex > 0)
 					{
 						string transPath = propertyPath.Substring(0, lastIndex);
-						// Console.Write($"<Find:{transPath}>");
+						LoggingWrapper.Trace($"<Find:{transPath}>");
 						result = result.RecursiveFind(transPath);
 						if (result == null)
 						{
-							LoggingWrapper.Log("EMPTY");
+							LoggingWrapper.Trace("EMPTY");
 							if (fallback != null && fallback != transform)
 								return fallback.RecursiveFindWithProperties(nameOfProperty);
 							return null;
@@ -100,27 +100,27 @@ namespace CustomModules
 					else propPath = propertyPath.Substring(propIndex, Math.Max(reIndex - propIndex, 0));
 					string propClass = propertyPath.Substring(lastIndex + 1, Math.Max(propIndex - lastIndex - 1, 0));
 
-					// Console.Write($"<Class:{propClass}>");
+					LoggingWrapper.Trace($"<Class:{propClass}>");
 					Component component = result.gameObject.GetComponentWithIndex(propClass);
 					if (component == null)
 					{
-						LoggingWrapper.Log("EMPTY : Cannot find Component " + propClass + "!");
+						LoggingWrapper.Warn("EMPTY : Cannot find Component " + propClass + "!");
 						if (fallback != null && fallback != transform)
 							return fallback.RecursiveFindWithProperties(nameOfProperty);
-						LoggingWrapper.Log(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
-						LoggingWrapper.Log("RecursiveFindWithProperties failed!");
+						LoggingWrapper.Error(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
+						LoggingWrapper.Error("RecursiveFindWithProperties failed!");
 						return null;
 					}
-					// Console.Write($"<Property:{propPath}>");
+					Console.Write($"<Property:{propPath}>");
 					object value = component.GetValueFromPath(propPath);
 
 					if (reIndex == -1)
 					{
-						LoggingWrapper.Log(value == null ? "EMPTY" : "RETURN");
+						LoggingWrapper.Trace(value == null ? "EMPTY" : "RETURN");
 						return value;
 					}
 
-					// Console.Write("<GetTrans>");
+					Console.Write("<GetTrans>");
 					result = (value as Component).transform;
 					propertyPath = propertyPath.Substring(reIndex);
 				}

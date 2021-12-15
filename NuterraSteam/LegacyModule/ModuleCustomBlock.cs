@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using System.Reflection;
+using HarmonyLib;
 
 
 namespace CustomModules.LegacyModule
@@ -16,21 +17,6 @@ namespace CustomModules.LegacyModule
 
         private bool rbodyExists = false;
         private float emissionTimeDelay = 0f;
-
-
-        static Type T_ComponentPool = typeof(ComponentPool);
-        static FieldInfo m_ReturnToPoolIndex = T_ComponentPool.GetField("m_ReturnToPoolIndex", BindingFlags.Instance | BindingFlags.NonPublic);
-        
-        /*
-        void OnRecycle()
-        {
-            if (BlockPrefabBuilder.ReparseVersion[(int)block.BlockType] != reparse_version_cache)
-            {
-                m_ReturnToPoolIndex.SetValue(ComponentPool.inst, (int)m_ReturnToPoolIndex.GetValue(ComponentPool.inst) - 1);
-                GameObject.Destroy(gameObject, 1f);
-            }
-        }
-        */
 
         public void UpdateEmission()
         {
