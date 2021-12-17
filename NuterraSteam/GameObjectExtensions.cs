@@ -30,11 +30,11 @@ namespace CustomModules
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var child = transform.GetChild(i);
-				LoggingWrapper.Info(child.name);
+				LoggingWrapper.Trace(child.name);
 				if (child.name == cName)
 				{
 					HierarchyBuildup += "/" + cName;
-					LoggingWrapper.Info(HierarchyBuildup + "  " + NameOfChild);
+					LoggingWrapper.Trace(HierarchyBuildup + "  " + NameOfChild);
 					if (HierarchyBuildup.EndsWith(NameOfChild))
 					{
 						return child;

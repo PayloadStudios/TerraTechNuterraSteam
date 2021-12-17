@@ -22,7 +22,7 @@ namespace CustomModules
 			RecipePrice = 0;
 			if (jData.TryGetValue("Recipe", out JToken jRecipe))
 			{
-				LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Recipe detected: {jRecipe.ToString()}");
+				LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Recipe detected: {jRecipe.ToString()}");
 
 				RecipeTable.Recipe recipe = new RecipeTable.Recipe();
 				Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> dictionary = new Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec>();
@@ -30,7 +30,7 @@ namespace CustomModules
 				if (jRecipe is JValue rString)
 				{
 					string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-					LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Adjusted Recipe Str: {recipeString}");
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Adjusted Recipe Str: {recipeString}");
 					foreach (string item in recipeString)
 					{
 						RecipePrice += AppendToRecipe(dictionary, item, 1);
@@ -70,12 +70,13 @@ namespace CustomModules
 		{
 			try
 			{
-				LoggingWrapper.Info("[Nuterra] Loading CustomBlock module");
+				LoggingWrapper.Debug("[Nuterra] Loading CustomBlock module");
+				LoggingWrapper.Trace(def.m_Json.ToString());
 
 				if (jToken.Type == JTokenType.Object)
 				{
 					JObject jData = (JObject)jToken;
-					LoggingWrapper.Info("[Nuterra] CreationStart");
+					LoggingWrapper.Debug("[Nuterra] CreationStart");
 					// Get the mod contents so we can search for additional assets
 					ModContainer container = ManMods.inst.FindMod(def);
 					ModContents mod = container != null ? container.Contents : null;
@@ -93,17 +94,23 @@ namespace CustomModules
 
 					// We get an ID for backwards compatibility
 					int legacyID = CustomParser.LenientTryParseInt(jData, "ID", 0);
+					NuterraDeserializer.DeserializingBlock = $"{def.m_BlockDisplayName} ({legacyID} => {blockID})";
 					if (legacyID != 0)
 					{
-						LoggingWrapper.Info(string.Format($"[Nuterra - {def.m_BlockDisplayName} ({legacyID} => {blockID})] Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockID));
-						NuterraMod.legacyToSessionIds.Add(legacyID, blockID);
+						LoggingWrapper.Debug(string.Format(NuterraDeserializer.DeserializingBlock + " Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockID));
+						try
+						{
+							NuterraMod.blockNameToLegacyIDs.Add(ModUtils.CreateCompoundId(container.ModID, def.name), legacyID);
+						}
+						catch (ArgumentException exception)
+                        {
+							LoggingWrapper.Error(exception, "Failed to register block {block} to name-ID map", def.name);
+                        }
 					}
 					else
                     {
 						NuterraMod.nonLegacyBlocks.Add(blockID);
                     }
-
-					NuterraDeserializer.DeserializingBlock = $"{def.m_BlockDisplayName} ({legacyID} => {blockID})";
 
 					// Ignore corporation. Custom corps no longer have a fixed ID, so we should use the official tool to set corp IDs.
 					//def.m_Corporation = CustomParser.LenientTryParseInt(jData, "Corporation", def.m_Corporation);
@@ -113,107 +120,115 @@ namespace CustomModules
 					def.m_Rarity = CustomParser.LenientTryParseEnum<BlockRarity>(jData, "Rarity", def.m_Rarity);
 					block.m_BlockRarity = def.m_Rarity;
 					def.m_Grade = CustomParser.LenientTryParseInt(jData, "Grade", def.m_Grade);
-					LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Grade: {def.m_Grade}");
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Grade: {def.m_Grade}");
 
 					// Recipe
 					ParseRecipe(jData, def.m_Corporation, blockID, out int RecipePrice);
 					def.m_Price = RecipePrice * 3;
 					int overridePrice = CustomParser.LenientTryParseInt(jData, "Price", 0);
 					if (overridePrice > 0) {
-						LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Read override price of {overridePrice}");
+						LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Read override price of {overridePrice}");
 						def.m_Price = overridePrice;
 					}
 					else
                     {
-						LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
+						LoggingWrapper.Warn($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
 					}
 					def.m_MaxHealth = CustomParser.LenientTryParseInt(jData, "HP", def.m_MaxHealth);
 
 					// ------------------------------------------------------
 					#region Reference - Copy a vanilla block
-					LoggingWrapper.Info("[Nuterra] Starting references");
+					LoggingWrapper.Debug("[Nuterra] Starting references");
 					bool keepRenderers = CustomParser.LenientTryParseBool(jData, "KeepRenderers", false);
 					bool keepReferenceRenderers = CustomParser.LenientTryParseBool(jData, "KeepReferenceRenderers", false);
 					bool keepColliders = CustomParser.LenientTryParseBool(jData, "KeepColliders", true);
+
+					GameObject originalGameObject = null;
 
 					if(CustomParser.TryGetStringMultipleKeys(jData, out string referenceBlock, "GamePrefabReference", "PrefabReference"))
 					{
 						// This code block copies our chosen reference block
 						// TTQMM REF: BlockPrefabBuilder.Initialize
 
-						GameObject originalGameObject = TTReferences.FindBlockReferenceFromString(referenceBlock);
-						if (originalGameObject != null)
+						originalGameObject = TTReferences.FindBlockReferenceFromString(referenceBlock);
+					}
+					else if (CustomParser.TryGetIntMultipleKeys(jData, out int referenceBlockID, 0, "GamePrefabReference", "PrefabReference"))
+                    {
+						referenceBlock = referenceBlockID.ToString();
+						originalGameObject = TTReferences.FindBlockReferenceByID(referenceBlockID);
+					}
+
+					if (originalGameObject != null)
+					{
+						GameObject newObject = GameObject.Instantiate(originalGameObject);
+						// Assign this back to block for further processing
+						block = GetOrAddComponent<TankBlock>(newObject.transform);
+						//TankBlock original = originalGameObject.GetComponent<TankBlock>();
+						//TankBlock copy = UnityEngine.Object.Instantiate(original);
+						TankBlockTemplate fakeTemplate = newObject.AddComponent<TankBlockTemplate>();
+						// Cheeky hack to swap the prefab
+						// The official block loader doesn't expect this to happen, but I will assume
+						// for now that you are making 100% official or 100% unofficial JSONs
+						def.m_PhysicalPrefab = fakeTemplate;
+
+						LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found game prefab reference as {newObject}");
+
+						// TTQMM REF: DirectoryBlockLoader.CreateJSONBlock, the handling of these flags is a bit weird
+						if (keepRenderers)
 						{
-							GameObject newObject = GameObject.Instantiate(originalGameObject);
-							// Assign this back to block for further processing
-							block = GetOrAddComponent<TankBlock>(newObject.transform);
-							//TankBlock original = originalGameObject.GetComponent<TankBlock>();
-							//TankBlock copy = UnityEngine.Object.Instantiate(original);
-							TankBlockTemplate fakeTemplate = newObject.AddComponent<TankBlockTemplate>();
-							// Cheeky hack to swap the prefab
-							// The official block loader doesn't expect this to happen, but I will assume
-							// for now that you are making 100% official or 100% unofficial JSONs
-							def.m_PhysicalPrefab = fakeTemplate;
-
-							LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found game prefab reference as {newObject}");
-
-							// TTQMM REF: DirectoryBlockLoader.CreateJSONBlock, the handling of these flags is a bit weird
-							if (keepRenderers)
+							if (!keepColliders)
 							{
-								if (!keepColliders)
+								RemoveChildren<Collider>(block);
+							}
+						}
+						else if (!keepReferenceRenderers)
+						{
+							RemoveChildren<MeshRenderer>(block);
+							RemoveChildren<TankTrack>(block);
+							RemoveChildren<SkinnedMeshRenderer>(block);
+							RemoveChildren<MeshFilter>(block);
+
+							if (!keepColliders)
+								RemoveChildren<Collider>(block);
+						}
+
+						newObject.layer = Globals.inst.layerTank;
+						newObject.tag = "TankBlock";
+
+
+						bool hasRefOffset = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jOffset, "ReferenceOffset", "PrefabOffset", "PrefabPosition");
+						bool hasRefRotation = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jEuler, "ReferenceRotationOffset", "PrefabRotation");
+						bool hasRefScale = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jScale, "ReferenceScale", "PrefabScale");
+
+						if (hasRefOffset || hasRefRotation || hasRefScale)
+						{
+							Vector3 offset = hasRefOffset ? CustomParser.GetVector3(jOffset) : Vector3.zero;
+							Vector3 scale = hasRefScale ? CustomParser.GetVector3(jScale) : Vector3.one;
+							Vector3 euler = hasRefRotation ? CustomParser.GetVector3(jEuler) : Vector3.zero;
+
+							foreach (Transform child in newObject.transform)
+							{
+								if (hasRefScale)
 								{
-									RemoveChildren<Collider>(block);
+									child.localScale = Vector3.Scale(child.localScale, scale);
+									child.localPosition = Vector3.Scale(child.localPosition, scale);
 								}
-							}
-							else if (!keepReferenceRenderers)
-							{
-								RemoveChildren<MeshRenderer>(block);
-								RemoveChildren<TankTrack>(block);
-								RemoveChildren<SkinnedMeshRenderer>(block);
-								RemoveChildren<MeshFilter>(block);
 
-								if (!keepColliders)
-									RemoveChildren<Collider>(block);
-							}
-
-							newObject.layer = Globals.inst.layerTank;
-							newObject.tag = "TankBlock";
-
-							
-							bool hasRefOffset = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jOffset, "ReferenceOffset", "PrefabOffset", "PrefabPosition");
-							bool hasRefRotation = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jEuler, "ReferenceRotationOffset", "PrefabRotation");
-							bool hasRefScale = CustomParser.TryGetTokenMultipleKeys(jData, out JToken jScale, "ReferenceScale", "PrefabScale");
-
-							if (hasRefOffset || hasRefRotation || hasRefScale)
-							{
-								Vector3 offset = hasRefOffset ? CustomParser.GetVector3(jOffset) : Vector3.zero;
-								Vector3 scale = hasRefScale ? CustomParser.GetVector3(jScale) : Vector3.one;
-								Vector3 euler = hasRefRotation ? CustomParser.GetVector3(jEuler) : Vector3.zero;
-
-								foreach (Transform child in newObject.transform)
+								if (hasRefOffset)
 								{
-									if (hasRefScale)
-									{
-										child.localScale = Vector3.Scale(child.localScale, scale);
-										child.localPosition = Vector3.Scale(child.localPosition, scale);
-									}
+									child.localPosition += offset;
+								}
 
-									if (hasRefOffset)
-									{
-										child.localPosition += offset;
-									}
-
-									if (hasRefRotation)
-									{
-										child.localEulerAngles = euler;
-									}
+								if (hasRefRotation)
+								{
+									child.localEulerAngles = euler;
 								}
 							}
 						}
-						else
-						{
-							LoggingWrapper.Error($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find GamePrefabReference {referenceBlock}");
-						}
+					}
+					else
+					{
+						LoggingWrapper.Error($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find GamePrefabReference {referenceBlock}");
 					}
 					#endregion
 					// ------------------------------------------------------
@@ -236,7 +251,7 @@ namespace CustomModules
 						if (refBlock != null)
 						{
 							moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
-							LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Swapped death explosion for {refBlock}");
+							LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Swapped death explosion for {refBlock}");
 						}
 					}
 					#endregion
@@ -244,7 +259,7 @@ namespace CustomModules
 
 					// ------------------------------------------------------
 					#region Tweaks
-					LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block cells");
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block cells");
 					// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
 					bool usedBlockExtents = false;
 					bool cellsProcessed = false;
@@ -316,7 +331,7 @@ namespace CustomModules
 						}
 						block.filledCells = filledCells.ToArray();
 						usedBlockExtents = true;
-						LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Overwrote BlockExtents");
+						LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Overwrote BlockExtents");
 					}
 
 					// Handle failure to get cells
@@ -325,7 +340,7 @@ namespace CustomModules
 						block.filledCells = new IntVector3[] { new IntVector3 (0, 0, 0) };
                     }
 
-					LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block APs");
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block APs");
 					// APs
 					bool manualAPs = false;
 					if (jData.TryGetValue("APs", out JToken jAPList) && jAPList.Type == JTokenType.Array)
@@ -389,7 +404,7 @@ namespace CustomModules
 						block.attachPoints = aps.ToArray();
 					}
 
-					LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block stats");
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block stats");
 					// Some basic block stats
 					damageable.DamageableType = (ManDamage.DamageableType)CustomParser.LenientTryParseInt(jData, "DamageableType", (int)damageable.DamageableType);
 					if(CustomParser.TryGetFloatMultipleKeys(jData, out float fragility, moduleDamage.m_DamageDetachFragility, "DetachFragility", "Fragility"))
@@ -525,7 +540,7 @@ namespace CustomModules
 					#endregion
 					// ------------------------------------------------------
 
-					LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling SubObjects");
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling SubObjects");
 					// Start recursively adding objects with the root. 
 					// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
 					RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
@@ -587,7 +602,7 @@ namespace CustomModules
 
         private void RecursivelyAddSubObject(TankBlock block, ModContents mod, Transform targetTransform, JObject jData, Material defaultMaterial, bool isNewSubObject)
 		{
-			LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Called RecursivelyAddSubObject");
+			LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Called RecursivelyAddSubObject");
 
 			// Material - Used in the next step
 			Material mat = null;
@@ -755,14 +770,14 @@ namespace CustomModules
 				bool makeBoxCollider = CustomParser.GetBoolMultipleKeys(jData, false, "MakeBoxCollider", "GenerateBoxCollider");
 				if(makeBoxCollider)
 				{
-					LoggingWrapper.Info($"[Nuterra {NuterraDeserializer.DeserializingBlock}] Generating box collider for {targetTransform.name}");
+					LoggingWrapper.Debug($"[Nuterra {NuterraDeserializer.DeserializingBlock}] Generating box collider for {targetTransform.name}");
 					BoxCollider bc = targetTransform.gameObject.EnsureComponent<BoxCollider>();
 					bc.sharedMaterial = physMat;
 					if (mesh != null)
 					{
 						mesh.RecalculateBounds();
 						Vector3 size = mesh.bounds.size * 0.9f;
-						LoggingWrapper.Info($"[Nuterra {NuterraDeserializer.DeserializingBlock}] - Adding BoxCollider of size {size}");
+						LoggingWrapper.Debug($"[Nuterra {NuterraDeserializer.DeserializingBlock}] - Adding BoxCollider of size {size}");
 						bc.size = size;
 						bc.center = mesh.bounds.center;
 					}
@@ -776,7 +791,7 @@ namespace CustomModules
 				bool makeSphereCollider = CustomParser.LenientTryParseBool(jData, "MakeSphereCollider", false);
 				if(makeSphereCollider)
 				{
-					LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Generating sphere collider for {block.name}");
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Generating sphere collider for {block.name}");
 					SphereCollider sc = targetTransform.gameObject.EnsureComponent<SphereCollider>();
 					sc.radius = 0.5f;
 					sc.center = Vector3.zero;
@@ -951,12 +966,12 @@ namespace CustomModules
 				{
 					RecipeBuilder[chunk].m_Quantity += Count;
 				}
-				LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Chunk of type {chunk} added to recipe");
+				LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Chunk of type {chunk} added to recipe");
 				return RecipeManager.inst.GetChunkPrice(chunk);
 			}
 			else
 			{
-				LoggingWrapper.Info($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] No ChunkTypes found matching given name, nor could parse as ID (int): " + Type);
+				LoggingWrapper.Error($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] No ChunkTypes found matching given name, nor could parse as ID (int): " + Type);
 			}
 			return 0;
 		}

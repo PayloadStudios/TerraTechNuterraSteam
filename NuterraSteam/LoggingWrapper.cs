@@ -44,6 +44,21 @@ namespace CustomModules
         private static MethodInfo trace;
         private static MethodInfo warn;
 
+        private enum LogLevel : byte
+        {
+            Trace = 0,
+            Debug = 1,
+            Info = 2,
+            Warn = 3,
+            Error = 4,
+            Fatal = 5,
+            Off = 6
+        }
+
+        private static byte loggingLevel = (byte) LogLevel.Info;
+
+        private static bool inited = false;
+
         private static void InitNLogIntegration(Assembly nlog)
         {
             Console.WriteLine("[NuterraSteam] FAILED to find LogManager! - Setting up NLog ourselves");
@@ -121,7 +136,34 @@ namespace CustomModules
             Console.WriteLine("Set file retention");
 
             FieldInfo minLevel = logConfigType.GetField("minLevel");
-            minLevel.SetValue(logManagerConfig, traceLevel);
+            var logLevel = infoLevel;
+            switch((LogLevel) loggingLevel)
+            {
+                case LogLevel.Trace:
+                    logLevel = traceLevel;
+                    break;
+                case LogLevel.Info:
+                    logLevel = infoLevel;
+                    break;
+                case LogLevel.Debug:
+                    logLevel = debugLevel;
+                    break;
+                case LogLevel.Warn:
+                    logLevel = warnLevel;
+                    break;
+                case LogLevel.Error:
+                    logLevel = errorLevel;
+                    break;
+                case LogLevel.Fatal:
+                    logLevel = fatalLevel;
+                    break;
+                case LogLevel.Off:
+                    logLevel = offLevel;
+                    break;
+                default:
+                    break;
+            }
+            minLevel.SetValue(logManagerConfig, logLevel);
             Console.WriteLine("Set logging level");
 
             MethodInfo registerLogger = logManager.GetMethod("RegisterLogger", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
@@ -165,159 +207,237 @@ namespace CustomModules
             offLevel = offField.GetValue(null);
         }
 
+        private static void ReadLoggingLevel()
+        {
+            string loggingLevelStr = "info";
+            string generalLevel = CommandLineReader.GetArgument("+log_level");
+            if (generalLevel != null)
+            {
+                loggingLevelStr = generalLevel;
+            }
+            string modLevel = CommandLineReader.GetArgument("+nuterra_steam_log_level");
+            if (modLevel != null)
+            {
+                loggingLevelStr = modLevel;
+            }
+
+            switch (loggingLevelStr)
+            {
+                case "info":
+                    Console.WriteLine($"[NuterraSteam] Logging info and up");
+                    loggingLevel = (byte)LogLevel.Info;
+                    break;
+                case "trace":
+                    Console.WriteLine($"[NuterraSteam] Logging trace and up");
+                    loggingLevel = (byte)LogLevel.Trace;
+                    break;
+                case "debug":
+                    Console.WriteLine($"[NuterraSteam] Logging debug and up");
+                    loggingLevel = (byte)LogLevel.Debug;
+                    break;
+                case "warn":
+                    Console.WriteLine($"[NuterraSteam] Logging warnings and up");
+                    loggingLevel = (byte)LogLevel.Warn;
+                    break;
+                case "error":
+                    Console.WriteLine($"[NuterraSteam] Logging errors only");
+                    loggingLevel = (byte)LogLevel.Error;
+                    break;
+                case "fatal":
+                    Console.WriteLine($"[NuterraSteam] Logging fatals only");
+                    loggingLevel = (byte)LogLevel.Fatal;
+                    break;
+                case "off":
+                    Console.WriteLine($"[NuterraSteam] Logging is disabled");
+                    loggingLevel = (byte)LogLevel.Off;
+                    break;
+                default:
+                    Console.WriteLine($"[NuterraSteam] {loggingLevelStr} is unrecognized logging level. Defaulting to info.");
+                    loggingLevel = (byte) LogLevel.Info;
+                    break;
+            }
+        }
+
         public static void Init()
         {
-            IEnumerable<Assembly> nlogSearch = AppDomain.CurrentDomain.GetAssemblies().Where(a => a.ToString().StartsWith("NLog,"));
-            if (nlogSearch.Count() > 0)
+            if (!inited)
             {
-                Assembly nlog = nlogSearch.FirstOrDefault();
-                Type NLogManager = nlog.GetType("NLog.LogManager", true);
-                MethodInfo getLogger = NLogManager.GetMethod("GetLogger", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
-                logger = (object) getLogger.Invoke(null, new object[] { "NuterraSteam" });
-
-                InitLoggers(nlog);
-
-                IEnumerable<Assembly> logManagerSearch = AppDomain.CurrentDomain.GetAssemblies().Where(a => a.ToString().StartsWith("LogManager,"));
-                if (logManagerSearch.Count() > 0)
+                ReadLoggingLevel();
+                inited = true;
+                IEnumerable<Assembly> nlogSearch = AppDomain.CurrentDomain.GetAssemblies().Where(a => a.ToString().StartsWith("NLog,"));
+                if (nlogSearch.Count() > 0)
                 {
-                    Assembly logManagerAssembly = logManagerSearch.FirstOrDefault();
-                    InitLogManagerIntegration(logManagerAssembly);
+                    Assembly nlog = nlogSearch.FirstOrDefault();
+                    Type NLogManager = nlog.GetType("NLog.LogManager", true);
+                    MethodInfo getLogger = NLogManager.GetMethod("GetLogger", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
+                    logger = (object)getLogger.Invoke(null, new object[] { "NuterraSteam" });
+
+                    InitLoggers(nlog);
+
+                    IEnumerable<Assembly> logManagerSearch = AppDomain.CurrentDomain.GetAssemblies().Where(a => a.ToString().StartsWith("LogManager,"));
+                    if (logManagerSearch.Count() > 0)
+                    {
+                        Assembly logManagerAssembly = logManagerSearch.FirstOrDefault();
+                        InitLogManagerIntegration(logManagerAssembly);
+                    }
+                    else
+                    {
+                        // disable bare NLog integration
+                        // InitNLogIntegration(nlog);
+                    }
                 }
                 else
                 {
-                    // disable bare NLog integration
-                    // InitNLogIntegration(nlog);
+                    Console.WriteLine("[NuterraSteam] NLog not found - resorting to default logging");
                 }
-            }
-            else
-            {
-                Console.WriteLine("[NuterraSteam] NLog not found - resorting to default logging");
             }
         }
 
         public static void Trace(string message, params object[] args)
         {
-            if (LogManagerAvailable)
+            if (loggingLevel <= (byte) LogLevel.Trace)
             {
-                trace.Invoke(logger, new object[] { message, args });
-            }
-            else
-            {
-                UnityEngine.Debug.LogFormat(message, args);
+                if (LogManagerAvailable)
+                {
+                    trace.Invoke(logger, new object[] { message, args });
+                }
+                else
+                {
+                    UnityEngine.Debug.LogFormat(message, args);
+                }
             }
         }
 
         public static void Debug(string message, params object[] args)
         {
-            if (LogManagerAvailable)
+            if (loggingLevel <= (byte) LogLevel.Debug)
             {
-                debug.Invoke(logger, new object[] { message, args });
-            }
-            else
-            {
-                UnityEngine.Debug.LogFormat(message, args);
+                if (LogManagerAvailable)
+                {
+                    debug.Invoke(logger, new object[] { message, args });
+                }
+                else
+                {
+                    UnityEngine.Debug.LogFormat(message, args);
+                }
             }
         }
 
         public static void Info(string message, params object[] args)
         {
-            if (LogManagerAvailable)
+            if (loggingLevel <= (byte) LogLevel.Info)
             {
-                info.Invoke(logger, new object[] { message, args });
-            }
-            else
-            {
-                UnityEngine.Debug.LogFormat(message, args);
+                if (LogManagerAvailable)
+                {
+                    info.Invoke(logger, new object[] { message, args });
+                }
+                else
+                {
+                    UnityEngine.Debug.LogFormat(message, args);
+                }
             }
         }
 
         public static void Fatal(string message, params object[] args)
         {
-            if (LogManagerAvailable)
+            if (loggingLevel <= (byte) LogLevel.Fatal)
             {
-                fatal.Invoke(logger, new object[] { message, args });
-            }
-            else
-            {
-                UnityEngine.Debug.LogErrorFormat(message, args);
+                if (LogManagerAvailable)
+                {
+                    fatal.Invoke(logger, new object[] { message, args });
+                }
+                else
+                {
+                    UnityEngine.Debug.LogErrorFormat(message, args);
+                }
             }
         }
 
         public static void Fatal(Exception exception, string message = null, params object[] args)
         {
-            if (LogManagerAvailable)
-            {
-                if (message == null)
+            if (loggingLevel <= (byte) LogLevel.Fatal) {
+                if (LogManagerAvailable)
                 {
-                    fatalException.Invoke(logger, new object[] { exception });
+                    if (message == null)
+                    {
+                        fatalException.Invoke(logger, new object[] { exception });
+                    }
+                    else
+                    {
+                        fatalParams.Invoke(logger, new object[] { exception, message, args });
+                    }
                 }
                 else
                 {
-                    fatalParams.Invoke(logger, new object[] { exception, message, args });
-                }
-            }
-            else
-            {
-                if (message == null)
-                {
-                    UnityEngine.Debug.LogError(exception);
-                }
-                else
-                {
-                    UnityEngine.Debug.LogError(String.Format(message, args));
-                    UnityEngine.Debug.LogError(exception);
+                    if (message == null)
+                    {
+                        UnityEngine.Debug.LogError(exception);
+                    }
+                    else
+                    {
+                        UnityEngine.Debug.LogError(String.Format(message, args));
+                        UnityEngine.Debug.LogError(exception);
+                    }
                 }
             }
         }
 
         public static void Error(string message, params object[] args)
         {
-            if (LogManagerAvailable)
+            if (loggingLevel <= (byte) LogLevel.Error)
             {
-                error.Invoke(logger, new object[] { message, args });
-            }
-            else
-            {
-                UnityEngine.Debug.LogErrorFormat(message, args);
+                if (LogManagerAvailable)
+                {
+                    error.Invoke(logger, new object[] { message, args });
+                }
+                else
+                {
+                    UnityEngine.Debug.LogErrorFormat(message, args);
+                }
             }
         }
 
         public static void Error(Exception exception, string message = null, params object[] args)
         {
-            if (LogManagerAvailable)
-            {
-                if (message == null)
+            if (loggingLevel <= (byte) LogLevel.Error) {
+                if (LogManagerAvailable)
                 {
-                    errorException.Invoke(logger, new object[] { exception });
+                    if (message == null)
+                    {
+                        errorException.Invoke(logger, new object[] { exception });
+                    }
+                    else
+                    {
+                        errorParams.Invoke(logger, new object[] { exception, message, args });
+                    }
                 }
                 else
                 {
-                    errorParams.Invoke(logger, new object[] { exception, message, args });
-                }
-            }
-            else
-            {
-                if (message == null)
-                {
-                    UnityEngine.Debug.LogError(exception);
-                }
-                else
-                {
-                    UnityEngine.Debug.LogError(String.Format(message, args));
-                    UnityEngine.Debug.LogError(exception);
+                    if (message == null)
+                    {
+                        UnityEngine.Debug.LogError(exception);
+                    }
+                    else
+                    {
+                        UnityEngine.Debug.LogError(String.Format(message, args));
+                        UnityEngine.Debug.LogError(exception);
+                    }
                 }
             }
         }
 
         public static void Warn(string message, params object[] args)
         {
-            if (LogManagerAvailable)
+            if (loggingLevel <= (byte) LogLevel.Warn)
             {
-                warn.Invoke(logger, new object[] { message, args });
-            }
-            else
-            {
-                UnityEngine.Debug.LogWarningFormat(message, args);
+                if (LogManagerAvailable)
+                {
+                    warn.Invoke(logger, new object[] { message, args });
+                }
+                else
+                {
+                    UnityEngine.Debug.LogWarningFormat(message, args);
+                }
             }
         }
     }

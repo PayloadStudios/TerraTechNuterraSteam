@@ -353,6 +353,37 @@ namespace CustomModules
 			result = defaultValue;
 			return false;
 		}
+		public static bool TryGetIntMultipleKeys(JObject jData, out int result, int defaultValue, params string[] args)
+		{
+			foreach (string arg in args)
+			{
+				if (jData.TryGetValue(arg, out JToken jToken))
+				{
+					if (jToken.Type == JTokenType.Integer)
+					{
+						result = jToken.ToObject<int>();
+						return true;
+					}
+				}
+			}
+			Dictionary<string, HashSet<string>> lowerMap = GetCasePropertyMap(jData);
+			foreach (string arg in args)
+			{
+				if (lowerMap.TryGetValue(arg.ToLower(), out HashSet<string> values))
+				{
+					if (jData.TryGetValue(GetClosestString(arg, values), out JToken jToken))
+					{
+						if (jToken.Type == JTokenType.Integer)
+						{
+							result = jToken.ToObject<int>();
+							return true;
+						}
+					}
+				}
+			}
+			result = defaultValue;
+			return false;
+		}
 
 		public static bool TryGetTokenMultipleKeys(JObject jData, out JToken token, params string[] args)
 		{

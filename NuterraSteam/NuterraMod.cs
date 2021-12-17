@@ -12,6 +12,7 @@ namespace CustomModules
 {
     public class NuterraMod : ModBase
     {
+        internal static Dictionary<string, int> blockNameToLegacyIDs = new Dictionary<string, int>();
         internal static Dictionary<int, int> legacyToSessionIds = new Dictionary<int, int>();
         internal static List<int> nonLegacyBlocks = new List<int>();
         internal static List<BlockRotationTable.GroupIndexLookup> addedRotationGroups = new List<BlockRotationTable.GroupIndexLookup>();
@@ -36,36 +37,44 @@ namespace CustomModules
             return input.Replace("JSONBLOCK", "Deserializer");
         }
 
-        public static void TryRegisterIDMapping(int legacyID, int sessionID)
+        public static void RegisterUnofficialBlocks(ModSessionInfo newSessionInfo)
         {
-            legacyToSessionIds.Add(legacyID, sessionID);
-        }
-
-        public static void TryRegisterUnofficialBlock(int blockID, ModdedBlockDefinition blockDef)
-        {
-            try
+            foreach (KeyValuePair<int, string> keyValuePair in newSessionInfo.BlockIDs)
             {
-                JObject jObj = JObject.Parse(blockDef.m_Json.text);
-                if (jObj != null && jObj.TryGetValue(NuterraModuleLoader.ModuleID, out JToken nuterra) && nuterra.Type == JTokenType.Object)
+                int sessionID = keyValuePair.Key;
+                string blockName = keyValuePair.Value;
+                if (blockNameToLegacyIDs.TryGetValue(blockName, out int legacyID))
                 {
-                    JObject UnofficialJson = (JObject) nuterra;
-                    if (UnofficialJson.TryGetValue("ID", out JToken value))
+                    try
                     {
-                        if (value.Type == JTokenType.Integer)
+                        legacyToSessionIds.Add(legacyID, sessionID);
+                        LoggingWrapper.Info("Registering block {Block} with legacy ID {LegacyID} to session ID {SessionID}", blockName, legacyID, sessionID);
+                    }
+                    catch (ArgumentException e)
+                    {
+                        string currentBlockName = newSessionInfo.BlockIDs[legacyToSessionIds[legacyID]];
+                        string currentModName = ModUtils.GetModFromCompoundId(currentBlockName);
+                        string modName = ModUtils.GetModFromCompoundId(blockName);
+                        LoggingWrapper.Error(e);
+                        if (modName == "LegacyBlockLoader")
                         {
-                            legacyToSessionIds.Add(value.ToObject<int>(), blockID);
+                            LoggingWrapper.Warn("Legacy Block {LegacyID} already has Official block {Block} assigned to it", legacyID, currentBlockName);
                         }
-                        else if (value.Type == JTokenType.String && int.TryParse(value.ToString(), out int ID))
+                        else if (currentModName == "LegacyBlockLoader")
                         {
-                            legacyToSessionIds.Add(ID, blockID);
+                            legacyToSessionIds[legacyID] = sessionID;
+                            LoggingWrapper.Warn("Reassigning Official block {Block} to replace Legacy Block {LegacyID}", blockName, legacyID);
+                        }
+                        else
+                        {
+                            LoggingWrapper.Error("Legacy Block {LegacyID} can be assigned to official blocks {Block1} or {Block2}. Resolving to {Block}", legacyID, blockName, currentBlockName, currentBlockName);
                         }
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                LoggingWrapper.Error($"Failed to read Block {blockDef.m_BlockDisplayName} ({blockDef.m_BlockIdentifier}) json:\n{blockDef.m_Json.text}");
-                LoggingWrapper.Error(e);
+                else
+                {
+                    LoggingWrapper.Debug("Block {block} does not have an associated legacy ID", blockName);
+                }
             }
         }
 

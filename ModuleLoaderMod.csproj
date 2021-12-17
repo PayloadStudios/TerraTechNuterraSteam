@@ -141,6 +141,26 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>del *.pdb
-	</PostBuildEvent>
+@setlocal enableextensions enabledelayedexpansion
+
+set modpath="E:\Steam\steamapps\common\TerraTech\LocalMods\NuterraSteam\"
+set unitypath="E:\Documents\Unity\Projects\TT Modding\Assets\Mods\NuterraSteam\"
+
+for %25%25I in (*) do if not "%25%25I" =="$(TargetFileName)" (
+del "%25%25I"
+)
+
+if not exist !modpath! (
+echo Creating mod folder
+mkdir !modpath!
+)
+
+echo Copying to game
+set e=$(TargetDir)..\&gt;nul
+xcopy /S /Y /R "$(TargetFileName)" !modpath!
+
+echo Copying to Unity
+set e=$(TargetDir)..\&gt;nul
+xcopy /S /Y /R "$(TargetFileName)" !unitypath!</PostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -270,7 +270,7 @@ namespace CustomModules
 							// If we couldn't find the component, make a new one
 							if (component == null)
 							{
-								LoggingWrapper.Error($"[Nuterra - {DeserializingBlock}] Failed to find component on target");
+								LoggingWrapper.Error($"[Nuterra - {DeserializingBlock}] Failed to find component {typeNameAndIndex} on target");
 								component = target.gameObject.AddComponent(type);
 							}
 							else
@@ -337,10 +337,10 @@ namespace CustomModules
 					{
 						case "Reference": // Copy a child object or component from another prefab
 						{
-							LoggingWrapper.Info($"[Nuterra - {DeserializingBlock}] Deserializing Reference {name}");
+							LoggingWrapper.Debug($"[Nuterra - {DeserializingBlock}] Deserializing Reference {name}");
 							if (TTReferences.GetReferenceFromBlockResource(name, out object reference))
 							{
-								LoggingWrapper.Info($"[Nuterra - {DeserializingBlock}] Found reference {reference}");
+								LoggingWrapper.Debug($"[Nuterra - {DeserializingBlock}] Found reference {reference}");
 								if (reference is GameObject || reference is Transform)
 								{
 									// If the reference was to a GameObject or a Transform, then we just want to copy that whole object
@@ -368,7 +368,7 @@ namespace CustomModules
 									Component existingComponent = target.GetComponent(type);
 									if (existingComponent == null)
 									{
-										LoggingWrapper.Info($"[Nuterra - {DeserializingBlock}] Could not find Component of type {type} - creating one now");
+										LoggingWrapper.Warn($"[Nuterra - {DeserializingBlock}] Could not find Component of type {type} - creating one now");
 										existingComponent = target.AddComponent(type);
 									}
 
@@ -392,7 +392,7 @@ namespace CustomModules
 						}
 						case "Duplicate": // Copy a child object from this prefab
 						{
-							LoggingWrapper.Info($"[Nuterra - {DeserializingBlock}] Deserializing Duplicate {name}");
+							LoggingWrapper.Debug($"[Nuterra - {DeserializingBlock}] Deserializing Duplicate {name}");
 							if (name.Contains('/') || name.Contains('.'))
 							{
 								object foundObject = GetCurrentSearchTransform().RecursiveFindWithProperties(name);
@@ -415,7 +415,7 @@ namespace CustomModules
 						case "Instantiate": // Instantiate something
 						default:
 						{
-							LoggingWrapper.Info($"[Nuterra - {DeserializingBlock}] Deserializing {split[0]}|{name}");
+							LoggingWrapper.Debug($"[Nuterra - {DeserializingBlock}] Deserializing {split[0]}|{name}");
 
 							if (childObject == null)
 								childObject = target.transform.Find(name)?.gameObject;
@@ -429,7 +429,7 @@ namespace CustomModules
 					{
 						if (jProperty.Value.Type == JTokenType.Null)
 						{
-							LoggingWrapper.Info($"[Nuterra - {DeserializingBlock}] Deserializing failed to find {name} to delete");
+							LoggingWrapper.Warn($"[Nuterra - {DeserializingBlock}] Deserializing failed to find {name} to delete");
 							continue;
 						}
 						else

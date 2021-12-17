@@ -99,7 +99,7 @@ namespace CustomModules
 			int separator = blockPath.IndexOfAny(new char[] { '.', '/' });
 			if (separator == -1)
 			{
-				LoggingWrapper.Info("Reference path is invalid! Expected block name and path to GameObject (" + blockPath + ")");
+				LoggingWrapper.Warn("Reference path is invalid! Expected block name and path to GameObject (" + blockPath + ")");
 				return false;
 			}
 			string blockReferenceString = blockPath.Substring(0, separator);
@@ -112,7 +112,7 @@ namespace CustomModules
 
 			if (refBlock == null)
 			{
-				LoggingWrapper.Info("Reference block is nonexistent! (" + blockReferenceString + ")");
+				LoggingWrapper.Warn("Reference block is nonexistent! (" + blockReferenceString + ")");
 				return false;
 			}
 			string sRefPath = blockPath.Substring(separator + 1);
@@ -136,7 +136,7 @@ namespace CustomModules
 			*/
 			if (reference == null)
 			{
-				LoggingWrapper.Info("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
+				LoggingWrapper.Warn("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
 				return false;
 			}
 			return true;
@@ -208,7 +208,7 @@ namespace CustomModules
 				return result;
 			}
 
-			LoggingWrapper.Info($"[Nuterra] FAILED to find material with name " + name);
+			LoggingWrapper.Error($"[Nuterra] FAILED to find material with name " + name);
 			return null;
 		}
 
@@ -241,7 +241,7 @@ namespace CustomModules
 				}
 				catch (Exception e)
                 {
-					LoggingWrapper.Info($"[Nuterra] ERROR caching assets of type {type}");
+					LoggingWrapper.Error(e, $"[Nuterra] ERROR caching assets of type {type}");
                 }
 			}
 
