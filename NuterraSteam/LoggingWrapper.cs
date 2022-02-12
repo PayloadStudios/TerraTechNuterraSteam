@@ -209,7 +209,7 @@ namespace CustomModules
 
         private static void ReadLoggingLevel()
         {
-            string loggingLevelStr = "info";
+            string loggingLevelStr = null;
             string generalLevel = CommandLineReader.GetArgument("+log_level");
             if (generalLevel != null)
             {
@@ -252,8 +252,7 @@ namespace CustomModules
                     loggingLevel = (byte)LogLevel.Off;
                     break;
                 default:
-                    Console.WriteLine($"[NuterraSteam] {loggingLevelStr} is unrecognized logging level. Defaulting to info.");
-                    loggingLevel = (byte) LogLevel.Info;
+                    Console.WriteLine($"[NuterraSteam] {loggingLevelStr} is unrecognized logging level. Defaulting to {loggingLevel}");
                     break;
             }
         }

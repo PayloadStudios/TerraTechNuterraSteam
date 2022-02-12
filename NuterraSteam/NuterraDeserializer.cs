@@ -20,6 +20,7 @@ namespace CustomModules
 		private static Type kTypeJToken = typeof(JToken);
 
 		internal static string DeserializingBlock = "UNKNOWN";
+		internal static ModContents DeserializingMod = null;
 
 		// TTQMM Ref: GameObjectJSON.ApplyValues(object instance, Type instanceType, JObject json, string Spacing)
 		// TTQMM Ref: GameObjectJSON.ApplyValue(object instance, Type instanceType, JProperty jsonProperty, string Spacing)
@@ -227,7 +228,9 @@ namespace CustomModules
 		{
 			// Ensure we have a target object
 			if (target == null)
+			{
 				target = new GameObject("Deserialized Object");
+			}
 
 			// Then read each JSON property and act accordingly
 			foreach (JProperty jProperty in jObject.Properties())
@@ -298,6 +301,17 @@ namespace CustomModules
 						}
 
 						LoggingWrapper.Trace($"[Nuterra - {DeserializingBlock}] Processing complete for type {type}");
+						if (type == typeof(UnityEngine.Transform))
+                        {
+							UnityEngine.Transform transform = component as Transform;
+							StringBuilder sb = new StringBuilder("{\n");
+							sb.Append($"\t\"localPosition\": {{\"x\": {transform.localPosition.x}, \"y\": {transform.localPosition.y}, \"z\": {transform.localPosition.z}}},\n");
+							sb.Append($"\t\"localEulerAngles\": {{\"x\": {transform.localEulerAngles.x}, \"y\": {transform.localEulerAngles.y}, \"z\": {transform.localEulerAngles.z}}},\n");
+							sb.Append($"\t\"localScale\": {{\"x\": {transform.localScale.x}, \"y\": {transform.localScale.y}, \"z\": {transform.localScale.z}}}\n");
+							sb.Append("}");
+							LoggingWrapper.Trace($"[Nuterra - {DeserializingBlock}] Deserialized transform as: {sb.ToString()}");
+
+						}
 					}
 					else
 					{
@@ -399,14 +413,23 @@ namespace CustomModules
 								if (foundObject != null)
 								{
 									if (foundObject is Component foundComponent)
+									{
 										childObject = foundComponent.gameObject;
+									}
 									else if (foundObject is GameObject foundGameObject)
+									{
 										childObject = foundGameObject;
+									}
+								}
+								else
+                                {
+									LoggingWrapper.Trace($"[Nuterra - {DeserializingBlock}] Failed to find object with name {name}");
 								}
 							}
-
 							if (childObject == null)
+							{
 								childObject = target.transform.Find(name)?.gameObject;
+							}
 
 							break;
 						}
@@ -434,6 +457,7 @@ namespace CustomModules
 						}
 						else
 						{
+							LoggingWrapper.Warn($"[Nuterra - {DeserializingBlock}] Creating new GO with name {name} under GO {target.name}");
 							childObject = new GameObject(name);
 							childObject.transform.parent = target.transform;
 							childObject.transform.localPosition = Vector3.zero;
@@ -506,7 +530,7 @@ namespace CustomModules
 				if (TTReferences.GetReferenceFromBlockResource(search, out var result)) // Get value from a block in the game
 					return result;
 			}
-			else if (TTReferences.TryFind(search, null, outType, out object result))
+			else if (TTReferences.TryFind(search, DeserializingMod, outType, out object result))
 			{
 				return result; // Get value from a value in the user database
 			}

@@ -223,8 +223,10 @@ namespace CustomModules
 				if (obj != null && type.IsAssignableFrom(obj.GetType()))
 				{
 					result = obj;
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found asset with name {name} of type {type}");
 					return true;
 				}
+				LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find asset with name {name} of type {type}");
 			}
 
 			// One time cache each type for the base game assets
@@ -269,8 +271,10 @@ namespace CustomModules
 				if (obj != null && obj is T)
 				{
 					result = obj as T;
+					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found asset with name {name} of type {typeof(T)}");
 					return true;
 				}
+				LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find asset with name {name} of type {typeof(T)}");
 			}
 
 			// One time cache each type for the base game assets

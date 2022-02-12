@@ -95,6 +95,7 @@ namespace CustomModules
 					// We get an ID for backwards compatibility
 					int legacyID = CustomParser.LenientTryParseInt(jData, "ID", 0);
 					NuterraDeserializer.DeserializingBlock = $"{def.m_BlockDisplayName} ({legacyID} => {blockID})";
+					NuterraDeserializer.DeserializingMod = mod;
 					if (legacyID != 0)
 					{
 						LoggingWrapper.Debug(string.Format(NuterraDeserializer.DeserializingBlock + " Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockID));
