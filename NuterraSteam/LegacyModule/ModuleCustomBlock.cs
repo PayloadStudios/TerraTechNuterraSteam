@@ -1,7 +1,4 @@
-﻿using System;
-using UnityEngine;
-using System.Reflection;
-using HarmonyLib;
+﻿using UnityEngine;
 
 
 namespace CustomModules.LegacyModule
