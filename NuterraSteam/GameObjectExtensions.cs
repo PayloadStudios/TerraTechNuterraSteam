@@ -30,11 +30,11 @@ namespace CustomModules
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var child = transform.GetChild(i);
-				LoggingWrapper.Trace(child.name);
+				LoggingWrapper.Trace("RecursiveFind: {}", child.name);
 				if (child.name == cName)
 				{
 					HierarchyBuildup += "/" + cName;
-					LoggingWrapper.Trace(HierarchyBuildup + "  " + NameOfChild);
+					LoggingWrapper.Trace("RecursiveFind: {}", HierarchyBuildup + "  " + NameOfChild);
 					if (HierarchyBuildup.EndsWith(NameOfChild))
 					{
 						return child;

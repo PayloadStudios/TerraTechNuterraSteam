@@ -12,36 +12,42 @@ namespace CustomModules
 {
     public static class CustomParser
     {
+		public static T LenientTryParseEnum<T>(JToken jtoken, T defaultValue) where T : Enum
+		{
+			string enumString = null;
+			switch (jtoken.Type)
+			{
+				case JTokenType.Float:
+					float value = jtoken.ToObject<float>();
+					float floored = Mathf.Floor(value);
+					if (value == floored)
+					{
+						enumString = ((int)floored).ToString();
+					}
+					break;
+				case JTokenType.Integer:
+					enumString = jtoken.ToObject<int>().ToString();
+					break;
+				case JTokenType.String:
+					enumString = jtoken.ToString();
+					break;
+				case JTokenType.Boolean:
+					enumString = jtoken.ToObject<bool>() ? "1" : "0";
+					break;
+			}
+			if (enumString != null)
+			{
+				return (T)((object)Enum.Parse(typeof(T), enumString));
+			}
+			return defaultValue;
+		}
+
 		public static T LenientTryParseEnum<T>(JObject obj, string key, T defaultValue) where T : Enum
 		{
 			JToken jtoken;
 			if (obj.TryGetValue(key, out jtoken))
 			{
-				string enumString = null;
-				switch (jtoken.Type)
-                {
-					case JTokenType.Float:
-						float value = jtoken.ToObject<float>();
-						float floored = Mathf.Floor(value);
-						if (value == floored)
-						{
-							enumString = ((int)floored).ToString();
-						}
-						break;
-					case JTokenType.Integer:
-						enumString = jtoken.ToObject<int>().ToString();
-						break;
-					case JTokenType.String:
-						enumString = jtoken.ToString();
-						break;
-					case JTokenType.Boolean:
-						enumString = jtoken.ToObject<bool>() ? "1" : "0";
-						break;
-				}
-				if (enumString != null)
-				{
-					return (T)((object)Enum.Parse(typeof(T), enumString));
-				}
+				return LenientTryParseEnum<T>(jtoken, defaultValue);
 			}
 			return defaultValue;
 		}
@@ -255,6 +261,24 @@ namespace CustomModules
 				}
 			}
 			return result;
+		}
+
+		public static Vector3 LenientTryParseVector3(JObject obj, string key, Vector3 defaultValue)
+		{
+			if (obj.TryGetValue(key, out JToken jtoken))
+			{
+				return GetVector3(jtoken);
+			}
+			return defaultValue;
+		}
+
+		public static IntVector3 LenientTryParseIntVector3(JObject obj, string key, IntVector3 defaultValue)
+		{
+			if (obj.TryGetValue(key, out JToken jtoken))
+			{
+				return GetVector3Int(jtoken);
+			}
+			return defaultValue;
 		}
 
 		private static Dictionary<string, HashSet<string>> GetCasePropertyMap(JObject jData)

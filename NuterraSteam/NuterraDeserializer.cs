@@ -203,8 +203,7 @@ namespace CustomModules
 				catch (Exception e)
 				{
 					LoggingWrapper.Error($"[Nuterra - {DeserializingBlock}] Failed to deserialize Json object");
-					LoggingWrapper.Error(e.Message);
-					LoggingWrapper.Error(e.StackTrace);
+					LoggingWrapper.Error(e);
 				}
 			}
 
@@ -273,7 +272,7 @@ namespace CustomModules
 							// If we couldn't find the component, make a new one
 							if (component == null)
 							{
-								LoggingWrapper.Error($"[Nuterra - {DeserializingBlock}] Failed to find component {typeNameAndIndex} on target");
+								LoggingWrapper.Warn($"[Nuterra - {DeserializingBlock}] Failed to find component {typeNameAndIndex} on target - making one now");
 								component = target.gameObject.AddComponent(type);
 							}
 							else
@@ -457,7 +456,7 @@ namespace CustomModules
 						}
 						else
 						{
-							LoggingWrapper.Warn($"[Nuterra - {DeserializingBlock}] Creating new GO with name {name} under GO {target.name}");
+							LoggingWrapper.Info($"[Nuterra - {DeserializingBlock}] Creating new GO with name {name} under GO {target.name}");
 							childObject = new GameObject(name);
 							childObject.transform.parent = target.transform;
 							childObject.transform.localPosition = Vector3.zero;

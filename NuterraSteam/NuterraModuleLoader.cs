@@ -101,7 +101,8 @@ namespace CustomModules
 						LoggingWrapper.Debug(string.Format(NuterraDeserializer.DeserializingBlock + " Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockID));
 						try
 						{
-							NuterraMod.blockNameToLegacyIDs.Add(ModUtils.CreateCompoundId(container.ModID, def.name), legacyID);
+							NuterraMod.blockIDToLegacyIDs.Add(ModUtils.CreateCompoundId(container.ModID, def.name), legacyID);
+							NuterraMod.legacyToSessionIds.Add(legacyID, blockID);
 						}
 						catch (ArgumentException exception)
                         {
@@ -184,10 +185,23 @@ namespace CustomModules
 						}
 						else if (!keepReferenceRenderers)
 						{
-							RemoveChildren<MeshRenderer>(block);
+							foreach (Transform child in block.transform)
+							{
+								RemoveChildren<MeshRenderer>(child);
+								RemoveChildren<MeshFilter>(child);
+							}
+							MeshFilter[] rootMeshes = block.GetComponents<MeshFilter>();
+							if (rootMeshes != null)
+                            {
+								foreach (MeshFilter meshFilter in rootMeshes)
+                                {
+									meshFilter.sharedMesh = null;
+									meshFilter.mesh = null;
+                                }
+                            }
+
 							RemoveChildren<TankTrack>(block);
 							RemoveChildren<SkinnedMeshRenderer>(block);
-							RemoveChildren<MeshFilter>(block);
 
 							if (!keepColliders)
 								RemoveChildren<Collider>(block);
@@ -406,8 +420,9 @@ namespace CustomModules
 					}
 
 					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block stats");
+
 					// Some basic block stats
-					damageable.DamageableType = (ManDamage.DamageableType)CustomParser.LenientTryParseInt(jData, "DamageableType", (int)damageable.DamageableType);
+					damageable.DamageableType = CustomParser.LenientTryParseEnum<ManDamage.DamageableType>(jData, "DamageableType", damageable.DamageableType);
 					if(CustomParser.TryGetFloatMultipleKeys(jData, out float fragility, moduleDamage.m_DamageDetachFragility, "DetachFragility", "Fragility"))
 					{
 						moduleDamage.m_DamageDetachFragility = fragility;
@@ -417,10 +432,9 @@ namespace CustomModules
 
 					// Emission Mode
 					ModuleCustomBlock.EmissionMode mode = ModuleCustomBlock.EmissionMode.None;
-					if (jData.TryGetValue("EmissionMode", out JToken jEmissionMode) && jEmissionMode.Type == JTokenType.Integer)
+					if (jData.TryGetValue("EmissionMode", out JToken jEmissionMode))
 					{
-						int emissionMode = jEmissionMode.ToObject<int>();
-						mode = (ModuleCustomBlock.EmissionMode)emissionMode;
+						mode = CustomParser.LenientTryParseEnum<ModuleCustomBlock.EmissionMode>(jEmissionMode, mode);
 					}
 
 					// Center of Mass
@@ -560,7 +574,6 @@ namespace CustomModules
                     {
 						toFlip = !isAutoImport.ToObject<bool>();
                     }
-
 					if (toFlip)
 					{
 						foreach (MeshRenderer mr in block.GetComponentsInChildren<MeshRenderer>())
