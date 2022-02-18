@@ -111,7 +111,7 @@ namespace CustomModules
 						LoggingWrapper.Error("RecursiveFindWithProperties failed!");
 						return null;
 					}
-					Console.Write($"<Property:{propPath}>");
+					LoggingWrapper.Trace($"<Property:{propPath}>");
 					object value = component.GetValueFromPath(propPath);
 
 					if (reIndex == -1)
@@ -120,7 +120,7 @@ namespace CustomModules
 						return value;
 					}
 
-					Console.Write("<GetTrans>");
+					LoggingWrapper.Trace("<GetTrans>");
 					result = (value as Component).transform;
 					propertyPath = propertyPath.Substring(reIndex);
 				}

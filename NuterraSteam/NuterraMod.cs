@@ -53,22 +53,25 @@ namespace CustomModules
                     }
                     catch (ArgumentException e)
                     {
-                        string currentBlockName = newSessionInfo.BlockIDs[legacyToSessionIds[legacyID]];
-                        string currentModName = ModUtils.GetModFromCompoundId(currentBlockName);
-                        string modName = ModUtils.GetModFromCompoundId(blockName);
-                        if (modName == "LegacyBlockLoader")
+                        int currentSessionID = legacyToSessionIds[legacyID];
+                        string currentBlockName = newSessionInfo.BlockIDs[currentSessionID];
+                        if (sessionID != currentSessionID)
                         {
-                            LoggingWrapper.Warn("Legacy Block {LegacyID} already has Official block {Block} assigned to it", legacyID, currentBlockName);
-                        }
-                        else if (currentModName == "LegacyBlockLoader")
-                        {
-                            legacyToSessionIds[legacyID] = sessionID;
-                            LoggingWrapper.Warn("Reassigning Official block {Block} to replace Legacy Block {LegacyID}", blockName, legacyID);
-                        }
-                        else
-                        {
-                            LoggingWrapper.Error(e);
-                            LoggingWrapper.Error("Legacy Block {LegacyID} can be assigned to official blocks {Block1} or {Block2}. Resolving to {Block}", legacyID, blockName, currentBlockName, currentBlockName);
+                            string currentModName = ModUtils.GetModFromCompoundId(currentBlockName);
+                            string modName = ModUtils.GetModFromCompoundId(blockName);
+                            if (modName == "LegacyBlockLoader")
+                            {
+                                LoggingWrapper.Warn("Legacy Block {LegacyID} already has Official block {Block} assigned to it", legacyID, currentBlockName);
+                            }
+                            else if (currentModName == "LegacyBlockLoader")
+                            {
+                                legacyToSessionIds[legacyID] = sessionID;
+                                LoggingWrapper.Warn("Reassigning Official block {Block} to replace Legacy Block {LegacyID}", blockName, legacyID);
+                            }
+                            else
+                            {
+                                LoggingWrapper.Error("Legacy Block {LegacyID} can be assigned to official blocks {Block1} or {Block2}. Resolving to {Block}", legacyID, blockName, currentBlockName, currentBlockName);
+                            }
                         }
                     }
                     catch (Exception e)

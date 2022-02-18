@@ -135,7 +135,7 @@ namespace CustomModules
             keepOldfiles.SetValue(logManagerConfig, false);
             Console.WriteLine("Set file retention");
 
-            FieldInfo minLevel = logConfigType.GetField("minLevel");
+            FieldInfo minLevel = logConfigType.GetField("defaultMinLevel");
             var logLevel = infoLevel;
             switch((LogLevel) loggingLevel)
             {
@@ -166,7 +166,13 @@ namespace CustomModules
             minLevel.SetValue(logManagerConfig, logLevel);
             Console.WriteLine("Set logging level");
 
-            MethodInfo registerLogger = logManager.GetMethod("RegisterLogger", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            MethodInfo registerLogger = logManager.GetMethod(
+                "RegisterLogger",
+                BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
+                null,
+                new Type[] { logger.GetType(), logConfigType },
+                null
+            );
             registerLogger.Invoke(null, new object[] { logger, logManagerConfig });
             Console.WriteLine("Registered logger");
         }
