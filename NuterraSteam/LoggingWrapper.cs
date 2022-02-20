@@ -55,7 +55,7 @@ namespace CustomModules
             Off = 6
         }
 
-        private static byte loggingLevel = (byte) LogLevel.Info;
+        private static byte loggingLevel = (byte) LogLevel.Warn;
 
         private static bool inited = false;
 

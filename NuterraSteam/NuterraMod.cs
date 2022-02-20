@@ -91,6 +91,11 @@ namespace CustomModules
             return legacyToSessionIds.TryGetValue(legacyId, out newId);
         }
 
+        public static bool TryGetLegacyID(string blockID, out int legacyID)
+        {
+            return blockIDToLegacyIDs.TryGetValue(blockID, out legacyID);
+        }
+
         public override void EarlyInit()
         {
             LoggingWrapper.Init();

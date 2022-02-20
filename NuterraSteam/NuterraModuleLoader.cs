@@ -492,7 +492,7 @@ namespace CustomModules
 					}
 
 					// IconName override
-					if (jData.TryGetValue("IconName", out JToken jIconName) && jIconName.Type == JTokenType.String)
+					if (CustomParser.TryGetTokenMultipleKeys(jData, out JToken jIconName, new string[] { "IconName", "Icon" }) && jIconName.Type == JTokenType.String)
 					{
 						UnityEngine.Object obj = mod.FindAsset(jIconName.ToString());
 						if (obj != null)
@@ -749,6 +749,20 @@ namespace CustomModules
 				{
 					GameObject meshObj = CreateMeshGameObject(targetTransform, mesh, mat, colliderMesh, physMat, supressBoxColliderFallback);
 				}
+				else if (mat != null && hasAnyOverrides)
+                {
+					LoggingWrapper.Debug("PROCESSING MATERIAL OVERRIDE");
+					// if no mesh is provided, and we specify a material override, override the root object
+					MeshRenderer meshRenderer = block.GetComponent<MeshRenderer>();
+					if (meshRenderer != null)
+                    {
+						meshRenderer.sharedMaterial = mat;
+                    }
+					else
+                    {
+						LoggingWrapper.Error("FAILED to find MeshRenderer to override");
+                    }
+                }
 			}
 			else // However, if we are poking around in a subobject, we may want to swap out existing renderers
 			{

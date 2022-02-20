@@ -381,7 +381,7 @@ namespace CustomModules
 									Component existingComponent = target.GetComponent(type);
 									if (existingComponent == null)
 									{
-										LoggingWrapper.Warn($"[Nuterra - {DeserializingBlock}] Could not find Component of type {type} - creating one now");
+										LoggingWrapper.Warn($"[Nuterra - {DeserializingBlock}] Could not find Component of type {type} - creating one now for shallow copy");
 										existingComponent = target.AddComponent(type);
 									}
 

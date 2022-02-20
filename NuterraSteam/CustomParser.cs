@@ -262,6 +262,98 @@ namespace CustomModules
 			}
 			return result;
 		}
+		
+		public static Vector2 GetVector2(JToken token)
+		{
+			Vector2 result = Vector2.zero;
+			if (token.Type == JTokenType.Object)
+			{
+				JObject jData = (JObject)token;
+
+				if (jData.TryGetValue("x", out JToken xToken) && (xToken.Type == JTokenType.Integer || xToken.Type == JTokenType.Float))
+				{
+					result.x = xToken.ToObject<float>();
+
+				}
+				else if (jData.TryGetValue("X", out xToken) && (xToken.Type == JTokenType.Integer || xToken.Type == JTokenType.Float))
+				{
+					result.x = xToken.ToObject<float>();
+				}
+
+				if (jData.TryGetValue("y", out JToken yToken) && (yToken.Type == JTokenType.Integer || yToken.Type == JTokenType.Float))
+				{
+					result.y = yToken.ToObject<float>();
+
+				}
+				else if (jData.TryGetValue("Y", out yToken) && (yToken.Type == JTokenType.Integer || yToken.Type == JTokenType.Float))
+				{
+					result.y = yToken.ToObject<float>();
+				}
+			}
+			else if (token.Type == JTokenType.Array)
+			{
+				JArray jList = (JArray)token;
+				for (int i = 0; i < Math.Min(3, jList.Count); i++)
+				{
+					switch (i)
+					{
+						case 0:
+							result.x = jList[i].ToObject<float>();
+							break;
+						case 1:
+							result.y = jList[i].ToObject<float>();
+							break;
+					}
+				}
+			}
+			return result;
+		}
+
+		public static IntVector2 GetVector2Int(JToken token)
+		{
+			IntVector2 result = IntVector2.zero;
+			if (token.Type == JTokenType.Object)
+			{
+				JObject jData = (JObject)token;
+
+				if (jData.TryGetValue("x", out JToken xToken) && xToken.Type == JTokenType.Integer)
+				{
+					result.x = xToken.ToObject<int>();
+
+				}
+				else if (jData.TryGetValue("X", out xToken) && xToken.Type == JTokenType.Integer)
+				{
+					result.x = xToken.ToObject<int>();
+				}
+
+				if (jData.TryGetValue("y", out JToken yToken) && yToken.Type == JTokenType.Integer)
+				{
+					result.y = yToken.ToObject<int>();
+
+				}
+				else if (jData.TryGetValue("Y", out yToken) && yToken.Type == JTokenType.Integer)
+				{
+					result.y = yToken.ToObject<int>();
+				}
+			}
+			else if (token.Type == JTokenType.Array)
+			{
+				JArray jList = (JArray)token;
+				for (int i = 0; i < Math.Min(2, jList.Count); i++)
+				{
+					switch (i)
+					{
+						case 0:
+							result.x = jList[i].ToObject<int>();
+							break;
+						case 1:
+							result.y = jList[i].ToObject<int>();
+							break;
+					}
+				}
+			}
+			return result;
+		}
 
 		public static Vector3 LenientTryParseVector3(JObject obj, string key, Vector3 defaultValue)
 		{
@@ -277,6 +369,24 @@ namespace CustomModules
 			if (obj.TryGetValue(key, out JToken jtoken))
 			{
 				return GetVector3Int(jtoken);
+			}
+			return defaultValue;
+		}
+
+		public static Vector2 LenientTryParseVector2(JObject obj, string key, Vector2 defaultValue)
+		{
+			if (obj.TryGetValue(key, out JToken jtoken))
+			{
+				return GetVector2(jtoken);
+			}
+			return defaultValue;
+		}
+
+		public static IntVector2 LenientTryParseIntVector2(JObject obj, string key, IntVector2 defaultValue)
+		{
+			if (obj.TryGetValue(key, out JToken jtoken))
+			{
+				return GetVector2Int(jtoken);
 			}
 			return defaultValue;
 		}
