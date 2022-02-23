@@ -125,8 +125,11 @@ namespace CustomModules
 					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Grade: {def.m_Grade}");
 
 					// Recipe
-					ParseRecipe(jData, def.m_Corporation, blockID, out int RecipePrice);
-					def.m_Price = RecipePrice * 3;
+					RecipeTable.Recipe recipe = ParseRecipe(jData, def.m_Corporation, blockID, out int RecipePrice);
+					if (recipe != null)
+					{
+						def.m_Price = RecipePrice * 3;
+					}
 					int overridePrice = CustomParser.LenientTryParseInt(jData, "Price", 0);
 					if (overridePrice > 0) {
 						LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Read override price of {overridePrice}");
@@ -611,7 +614,7 @@ namespace CustomModules
 			{
 				LoggingWrapper.Error("[Nuterra] Unable to inject Recipe");
 			}
-			return base.InjectBlock(blockID, def, jToken);
+			return true;
         }
 
         private void RecursivelyAddSubObject(TankBlock block, ModContents mod, Transform targetTransform, JObject jData, Material defaultMaterial, bool isNewSubObject)
@@ -855,7 +858,7 @@ namespace CustomModules
 						}
 						else
 						{
-							LoggingWrapper.Error($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find SubOverrideName tag in sub object JSON - assuming create new");
+							LoggingWrapper.Warn($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find SubOverrideName tag in sub object JSON - assuming create new");
 							subObject = null;
 						}
 
