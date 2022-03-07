@@ -119,11 +119,11 @@ namespace CustomModules
 
         private static void InitLogManagerIntegration(Assembly logManagerAssembly)
         {
-            Type logManager = logManagerAssembly.GetType("LogManager.Manager", true);
-            Console.WriteLine("[NuterraSteam] Found LogManager");
+            Type logManager = logManagerAssembly.GetType("LogManager.TTLogManager", true);
+            Console.WriteLine("[NuterraSteam] Found LogManager.TTLogManager");
             LogManagerAvailable = true;
 
-            Type logConfigType = logManager.GetNestedTypes().FirstOrDefault(t => t.Name.Contains("LogConfig"));
+            Type logConfigType = logManagerAssembly.GetType("LogManager.LogConfig", true);
             object logManagerConfig = Activator.CreateInstance(logConfigType);
             Console.WriteLine("Created config");
 
@@ -221,7 +221,7 @@ namespace CustomModules
             {
                 loggingLevelStr = generalLevel;
             }
-            string modLevel = CommandLineReader.GetArgument("+nuterra_steam_log_level");
+            string modLevel = CommandLineReader.GetArgument("+log_level_NuterraSteam");
             if (modLevel != null)
             {
                 loggingLevelStr = modLevel;
@@ -279,7 +279,7 @@ namespace CustomModules
 
                     InitLoggers(nlog);
 
-                    IEnumerable<Assembly> logManagerSearch = AppDomain.CurrentDomain.GetAssemblies().Where(a => a.ToString().StartsWith("LogManager,"));
+                    IEnumerable<Assembly> logManagerSearch = AppDomain.CurrentDomain.GetAssemblies().Where(a => a.ToString().StartsWith("NLogManager,"));
                     if (logManagerSearch.Count() > 0)
                     {
                         Assembly logManagerAssembly = logManagerSearch.FirstOrDefault();
