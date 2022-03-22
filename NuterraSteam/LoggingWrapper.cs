@@ -306,9 +306,13 @@ namespace CustomModules
                 {
                     trace.Invoke(logger, new object[] { message, args });
                 }
-                else
+                else if (args?.Length > 0)
                 {
                     UnityEngine.Debug.LogFormat(message, args);
+                }
+                else
+                {
+                    UnityEngine.Debug.Log(message);
                 }
             }
         }
@@ -321,9 +325,13 @@ namespace CustomModules
                 {
                     debug.Invoke(logger, new object[] { message, args });
                 }
-                else
+                else if (args?.Length > 0)
                 {
                     UnityEngine.Debug.LogFormat(message, args);
+                }
+                else
+                {
+                    UnityEngine.Debug.Log(message);
                 }
             }
         }
@@ -336,9 +344,13 @@ namespace CustomModules
                 {
                     info.Invoke(logger, new object[] { message, args });
                 }
-                else
+                else if (args?.Length > 0)
                 {
                     UnityEngine.Debug.LogFormat(message, args);
+                }
+                else
+                {
+                    UnityEngine.Debug.Log(message);
                 }
             }
         }
@@ -351,9 +363,13 @@ namespace CustomModules
                 {
                     fatal.Invoke(logger, new object[] { message, args });
                 }
+                else if (args?.Length > 0)
+                {
+                    UnityEngine.Debug.LogFormat(message, args);
+                }
                 else
                 {
-                    UnityEngine.Debug.LogErrorFormat(message, args);
+                    UnityEngine.Debug.Log(message);
                 }
             }
         }
@@ -374,15 +390,18 @@ namespace CustomModules
                 }
                 else
                 {
-                    if (message == null)
+                    if (message != null)
                     {
-                        UnityEngine.Debug.LogError(exception);
+                        if (args?.Length > 0)
+                        {
+                            UnityEngine.Debug.LogError(String.Format(message, args));
+                        }
+                        else
+                        {
+                            UnityEngine.Debug.LogError(message);
+                        }
                     }
-                    else
-                    {
-                        UnityEngine.Debug.LogError(String.Format(message, args));
-                        UnityEngine.Debug.LogError(exception);
-                    }
+                    UnityEngine.Debug.LogError(exception);
                 }
             }
         }
@@ -395,9 +414,13 @@ namespace CustomModules
                 {
                     error.Invoke(logger, new object[] { message, args });
                 }
-                else
+                else if (args?.Length > 0)
                 {
                     UnityEngine.Debug.LogErrorFormat(message, args);
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError(message);
                 }
             }
         }
@@ -418,15 +441,18 @@ namespace CustomModules
                 }
                 else
                 {
-                    if (message == null)
+                    if (message != null)
                     {
-                        UnityEngine.Debug.LogError(exception);
+                        if (args?.Length > 0)
+                        {
+                            UnityEngine.Debug.LogError(String.Format(message, args));
+                        }
+                        else
+                        {
+                            UnityEngine.Debug.LogError(message);
+                        }
                     }
-                    else
-                    {
-                        UnityEngine.Debug.LogError(String.Format(message, args));
-                        UnityEngine.Debug.LogError(exception);
-                    }
+                    UnityEngine.Debug.LogError(exception);
                 }
             }
         }
@@ -439,9 +465,13 @@ namespace CustomModules
                 {
                     warn.Invoke(logger, new object[] { message, args });
                 }
-                else
+                else if (args?.Length > 0)
                 {
                     UnityEngine.Debug.LogWarningFormat(message, args);
+                }
+                else
+                {
+                    UnityEngine.Debug.LogWarning(message);
                 }
             }
         }
