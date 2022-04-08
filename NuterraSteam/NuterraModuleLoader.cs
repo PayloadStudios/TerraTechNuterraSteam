@@ -106,7 +106,7 @@ namespace CustomModules
 						}
 						catch (ArgumentException exception)
                         {
-							LoggingWrapper.Error(exception, "Failed to register block {block} to name-ID map", def.name);
+							LoggingWrapper.Error(exception, $"Failed to register block {def.name} to name-ID map");
                         }
 					}
 					else
@@ -210,6 +210,7 @@ namespace CustomModules
 								RemoveChildren<Collider>(block);
 						}
 
+						newObject.name = def.name;
 						newObject.layer = Globals.inst.layerTank;
 						newObject.tag = "TankBlock";
 
@@ -837,7 +838,9 @@ namespace CustomModules
 				JObject jDeserializer = (JObject)jDeserialObj;
 
 				// TTQMM Ref: GameObjectJSON.CreateGameObject(jBlock.Deserializer, blockbuilder.Prefab);
+				NuterraDeserializer.sCurrentSearchTransform = block.gameObject.transform;
 				NuterraDeserializer.DeserializeIntoGameObject(jDeserializer, block.gameObject);
+				LoggingWrapper.Trace("DONE with main GO hierarchy");
 			}
 			#endregion
 			// ------------------------------------------------------

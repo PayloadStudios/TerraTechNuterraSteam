@@ -49,7 +49,7 @@ namespace CustomModules
                     try
                     {
                         legacyToSessionIds.Add(legacyID, sessionID);
-                        LoggingWrapper.Info("Registering block {Block} with legacy ID {LegacyID} to session ID {SessionID}", blockName, legacyID, sessionID);
+                        LoggingWrapper.Info($"Registering block {blockName} with legacy ID {legacyID} to session ID {sessionID}");
                     }
                     catch (ArgumentException e)
                     {
@@ -61,16 +61,16 @@ namespace CustomModules
                             string modName = ModUtils.GetModFromCompoundId(blockName);
                             if (modName == "LegacyBlockLoader")
                             {
-                                LoggingWrapper.Warn("Legacy Block {LegacyID} already has Official block {Block} assigned to it", legacyID, currentBlockName);
+                                LoggingWrapper.Warn($"Legacy Block {legacyID} already has Official block {currentBlockName} assigned to it");
                             }
                             else if (currentModName == "LegacyBlockLoader")
                             {
                                 legacyToSessionIds[legacyID] = sessionID;
-                                LoggingWrapper.Warn("Reassigning Official block {Block} to replace Legacy Block {LegacyID}", blockName, legacyID);
+                                LoggingWrapper.Warn($"Reassigning Official block {blockName} to replace Legacy Block {legacyID}");
                             }
                             else
                             {
-                                LoggingWrapper.Error("Legacy Block {LegacyID} can be assigned to official blocks {Block1} or {Block2}. Resolving to {Block}", legacyID, blockName, currentBlockName, currentBlockName);
+                                LoggingWrapper.Error($"Legacy Block {legacyID} can be assigned to official blocks {blockName} or {currentBlockName}. Resolving to {currentBlockName}");
                             }
                         }
                     }
@@ -81,7 +81,7 @@ namespace CustomModules
                 }
                 else
                 {
-                    LoggingWrapper.Debug("Block {block} does not have an associated legacy ID", blockName);
+                    LoggingWrapper.Debug($"Block {blockName} does not have an associated legacy ID");
                 }
             }
         }

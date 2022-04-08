@@ -25,26 +25,39 @@ namespace CustomModules
 		// These functions are copied from GameObjectJSON
 		public static Transform RecursiveFind(this Transform transform, string NameOfChild, string HierarchyBuildup = "")
 		{
+			LoggingWrapper.Trace($"Recursively checking for path {NameOfChild} in transform {transform.name} with hierarchy {HierarchyBuildup}");
 			if (NameOfChild == "/") return transform;
 			string cName = NameOfChild.Substring(NameOfChild.LastIndexOf('/') + 1);
+
+			// Do one flat check on the current GO first
+			LoggingWrapper.Trace($"Checking for child with name {cName}, {transform.childCount} children");
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var child = transform.GetChild(i);
-				LoggingWrapper.Trace("RecursiveFind: {}", child.name);
+				LoggingWrapper.Trace($"RecursiveFind check: {child.name}");
 				if (child.name == cName)
 				{
-					HierarchyBuildup += "/" + cName;
-					LoggingWrapper.Trace("RecursiveFind: {}", HierarchyBuildup + "  " + NameOfChild);
-					if (HierarchyBuildup.EndsWith(NameOfChild))
+					string newHierarchy = HierarchyBuildup + "/" + child.name;
+					LoggingWrapper.Trace($"RecursiveFind: {newHierarchy} {NameOfChild}");
+					if (newHierarchy.EndsWith(NameOfChild))
 					{
+						LoggingWrapper.Trace($"MATCHED {NameOfChild} to hierarchy {newHierarchy}");
 						return child;
 					}
+					else
+                    {
+						LoggingWrapper.Trace($"FAILED to match {NameOfChild} to hierarchy {newHierarchy}");
+                    }
 				}
 			}
+
+			// Go to fallback GO check when the first check fails
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var c = transform.GetChild(i);
-				var child = c.RecursiveFind(NameOfChild, HierarchyBuildup + "/" + c.name);
+				LoggingWrapper.Trace($"Calling recursiveFind: {c.name}");
+				string newHierarchy = HierarchyBuildup + "/" + c.name;
+				var child = c.RecursiveFind(NameOfChild, newHierarchy);
 				if (child != null)
 				{
 					return child;
@@ -57,6 +70,8 @@ namespace CustomModules
 		{
 			try
 			{
+				LoggingWrapper.Debug($"Searching for {nameOfProperty} under transform {transform.name}, fallback {fallback}");
+
 				int propIndex = nameOfProperty.IndexOf('.');
 				if (propIndex == -1)
 				{
@@ -65,7 +80,6 @@ namespace CustomModules
 					return tresult;
 				}
 				Transform result = transform;
-				LoggingWrapper.Debug($"Searching for {nameOfProperty} under transform {transform.name}, fallback {fallback}");
 
 				string propertyPath = nameOfProperty;
 				while (true)

@@ -298,17 +298,13 @@ namespace CustomModules
             }
         }
 
-        public static void Trace(string message, params object[] args)
+        public static void Trace(string message)
         {
             if (loggingLevel <= (byte) LogLevel.Trace)
             {
                 if (LogManagerAvailable)
                 {
-                    trace.Invoke(logger, new object[] { message, args });
-                }
-                else if (args?.Length > 0)
-                {
-                    UnityEngine.Debug.LogFormat(message, args);
+                    trace.Invoke(logger, new object[] { message });
                 }
                 else
                 {
@@ -317,17 +313,13 @@ namespace CustomModules
             }
         }
 
-        public static void Debug(string message, params object[] args)
+        public static void Debug(string message)
         {
             if (loggingLevel <= (byte) LogLevel.Debug)
             {
                 if (LogManagerAvailable)
                 {
-                    debug.Invoke(logger, new object[] { message, args });
-                }
-                else if (args?.Length > 0)
-                {
-                    UnityEngine.Debug.LogFormat(message, args);
+                    debug.Invoke(logger, new object[] { message });
                 }
                 else
                 {
@@ -336,17 +328,13 @@ namespace CustomModules
             }
         }
 
-        public static void Info(string message, params object[] args)
+        public static void Info(string message)
         {
             if (loggingLevel <= (byte) LogLevel.Info)
             {
                 if (LogManagerAvailable)
                 {
-                    info.Invoke(logger, new object[] { message, args });
-                }
-                else if (args?.Length > 0)
-                {
-                    UnityEngine.Debug.LogFormat(message, args);
+                    info.Invoke(logger, new object[] { message });
                 }
                 else
                 {
@@ -355,17 +343,13 @@ namespace CustomModules
             }
         }
 
-        public static void Fatal(string message, params object[] args)
+        public static void Fatal(string message)
         {
             if (loggingLevel <= (byte) LogLevel.Fatal)
             {
                 if (LogManagerAvailable)
                 {
-                    fatal.Invoke(logger, new object[] { message, args });
-                }
-                else if (args?.Length > 0)
-                {
-                    UnityEngine.Debug.LogFormat(message, args);
+                    fatal.Invoke(logger, new object[] { message });
                 }
                 else
                 {
@@ -374,7 +358,7 @@ namespace CustomModules
             }
         }
 
-        public static void Fatal(Exception exception, string message = null, params object[] args)
+        public static void Fatal(Exception exception, string message = null)
         {
             if (loggingLevel <= (byte) LogLevel.Fatal) {
                 if (LogManagerAvailable)
@@ -385,38 +369,27 @@ namespace CustomModules
                     }
                     else
                     {
-                        fatalParams.Invoke(logger, new object[] { exception, message, args });
+                        fatalParams.Invoke(logger, new object[] { exception, message });
                     }
                 }
                 else
                 {
                     if (message != null)
                     {
-                        if (args?.Length > 0)
-                        {
-                            UnityEngine.Debug.LogError(String.Format(message, args));
-                        }
-                        else
-                        {
-                            UnityEngine.Debug.LogError(message);
-                        }
+                        UnityEngine.Debug.LogError(message);
                     }
                     UnityEngine.Debug.LogError(exception);
                 }
             }
         }
 
-        public static void Error(string message, params object[] args)
+        public static void Error(string message)
         {
             if (loggingLevel <= (byte) LogLevel.Error)
             {
                 if (LogManagerAvailable)
                 {
-                    error.Invoke(logger, new object[] { message, args });
-                }
-                else if (args?.Length > 0)
-                {
-                    UnityEngine.Debug.LogErrorFormat(message, args);
+                    error.Invoke(logger, new object[] { message });
                 }
                 else
                 {
@@ -425,7 +398,7 @@ namespace CustomModules
             }
         }
 
-        public static void Error(Exception exception, string message = null, params object[] args)
+        public static void Error(Exception exception, string message = null)
         {
             if (loggingLevel <= (byte) LogLevel.Error) {
                 if (LogManagerAvailable)
@@ -436,38 +409,27 @@ namespace CustomModules
                     }
                     else
                     {
-                        errorParams.Invoke(logger, new object[] { exception, message, args });
+                        errorParams.Invoke(logger, new object[] { exception, message });
                     }
                 }
                 else
                 {
                     if (message != null)
                     {
-                        if (args?.Length > 0)
-                        {
-                            UnityEngine.Debug.LogError(String.Format(message, args));
-                        }
-                        else
-                        {
-                            UnityEngine.Debug.LogError(message);
-                        }
+                        UnityEngine.Debug.LogError(message);
                     }
                     UnityEngine.Debug.LogError(exception);
                 }
             }
         }
 
-        public static void Warn(string message, params object[] args)
+        public static void Warn(string message)
         {
             if (loggingLevel <= (byte) LogLevel.Warn)
             {
                 if (LogManagerAvailable)
                 {
-                    warn.Invoke(logger, new object[] { message, args });
-                }
-                else if (args?.Length > 0)
-                {
-                    UnityEngine.Debug.LogWarningFormat(message, args);
+                    warn.Invoke(logger, new object[] { message });
                 }
                 else
                 {

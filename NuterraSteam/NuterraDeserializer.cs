@@ -215,7 +215,7 @@ namespace CustomModules
 		{
 			if (target == null)
 				target = new GameObject("New Deserialized Object");
-
+			LoggingWrapper.Trace($"Deserializing GameObject {target.name}");
 			PushSearchTransform(target.transform);
 			GameObject result = DeserializeIntoGameObject_Internal(jObject, target);
 			PopSearchTransform();
@@ -493,7 +493,8 @@ namespace CustomModules
 					}
 
 					LoggingWrapper.Trace($"[Nuterra - {DeserializingBlock}] Deserializing jProp {jProperty.Name} --- {jProperty.Value}");
-					DeserializeIntoGameObject_Internal((JObject)jProperty.Value, childObject);
+					// Switch back to DeserializeIntoGameObject so this will also update the child hierarchy
+					DeserializeIntoGameObject((JObject)jProperty.Value, childObject);
 				}
 			}
 			return target;
@@ -526,24 +527,31 @@ namespace CustomModules
 		{
 			if (searchFull.StartsWith("Reference"))
 			{
+				LoggingWrapper.Trace($"[Nuterra - {DeserializingBlock}] Detected value {search} as Reference");
 				if (TTReferences.GetReferenceFromBlockResource(search, out var result)) // Get value from a block in the game
 					return result;
 			}
 			else if (TTReferences.TryFind(search, DeserializingMod, outType, out object result))
 			{
+				LoggingWrapper.Trace($"[Nuterra - {DeserializingBlock}] value has been retrieved for {search}");
 				return result; // Get value from a value in the user database
 			}
 			else
 			{
+				LoggingWrapper.Trace($"[Nuterra - {DeserializingBlock}] Attempting to search the local transform tree for {search}");
 				try
 				{
 					// Last fallback, we try searching our current working tree
 					var recursive = GetCurrentSearchTransform().RecursiveFindWithProperties(searchFull, GetRootSearchTransform());
 					if (recursive != null)
 						return recursive; // Get value from this block
+					else
+						LoggingWrapper.Warn($"[Nuterra - {DeserializingBlock}] FAILED to find {search} under current block");
 				}
-				catch
-				{ }
+				catch (Exception e)
+				{
+					LoggingWrapper.Error(e, $"[Nuterra - {DeserializingBlock}] Failed to find {search} with error");
+				}
 			}
 			return null;
 		}
@@ -632,12 +640,19 @@ namespace CustomModules
 		};
 
 		// TODO: Do we have to have this??
-		private static Transform sCurrentSearchTransform = null;
+		internal static Transform sCurrentSearchTransform = null;
 		private static Stack<Transform> sTransformSearchStack = new Stack<Transform>();
-		private static Transform GetRootSearchTransform() { return sTransformSearchStack.First(); }
+		private static Transform GetRootSearchTransform() { return sCurrentSearchTransform; }
 		private static Transform GetCurrentSearchTransform() { return sTransformSearchStack.Peek(); }
-		private static void PushSearchTransform(Transform t) { sTransformSearchStack.Push(t); }
-		private static void PopSearchTransform() { sTransformSearchStack.Pop(); }
+		private static void PushSearchTransform(Transform t) {
+			LoggingWrapper.Trace($"[STACK] PUSH transform {t}");
+			sTransformSearchStack.Push(t);
+		}
+		private static void PopSearchTransform()
+		{
+			Transform removed = sTransformSearchStack.Pop();
+			LoggingWrapper.Trace($"[STACK] POP transform {removed}");
+		}
 
 		// TTQMM Ref : GameObjectJSON.SetJSONObject(JObject jObject, object instance, string Spacing, bool Wipe, bool Instantiate, FieldInfo tField, PropertyInfo tProp, bool UseField)
 		private static void SetJSONObject(JObject jObject, object target, bool wipe, bool instantiate, MemberInfo memberInfo)
