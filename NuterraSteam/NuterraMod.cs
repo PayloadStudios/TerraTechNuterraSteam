@@ -106,8 +106,8 @@ namespace CustomModules
             return true;
         }
 
-        public override void Init()
-		{
+        public static void SetupMetadata()
+        {
             ModSessionInfo sessionInfo = (ModSessionInfo)m_CurrentSession.GetValue(Singleton.Manager<ManMods>.inst);
 
             // Clear this map. We never clear blockNametoLegacyIDs, since te keys guaranteed unique, and can stay indefinitely
@@ -185,20 +185,18 @@ namespace CustomModules
                     }
                 }
             }
+        }
 
-			JSONBlockLoader.RegisterModuleLoader(new NuterraModuleLoader());
-		}
-
-		public override void DeInit()
-		{
+        public static void ClearMetadata()
+        {
             // Reset Paired Block Unlock Table
             Globals.inst.m_BlockPairsList.m_BlockPairs =
                 Globals.inst.m_BlockPairsList.m_BlockPairs
-                .Where(pair => !nonLegacyBlocks.Contains((int) pair.m_Block) && !legacyToSessionIds.ContainsValue((int) pair.m_Block))
+                .Where(pair => !nonLegacyBlocks.Contains((int)pair.m_Block) && !legacyToSessionIds.ContainsValue((int)pair.m_Block))
                 .ToArray();
 
             nonLegacyBlocks.Clear();
-            
+
             //Reset Block Rotation Table
             BlockRotationTable BlockRotationTable = (BlockRotationTable)NuterraModuleLoader.m_BlockRotationTable.GetValue(Singleton.Manager<ManTechBuilder>.inst);
             foreach (BlockRotationTable.GroupIndexLookup lookup in addedRotationGroups)
@@ -209,6 +207,17 @@ namespace CustomModules
                 }
             }
             addedRotationGroups.Clear();
+        }
+
+        public override void Init()
+		{
+            SetupMetadata();
+			JSONBlockLoader.RegisterModuleLoader(new NuterraModuleLoader());
+		}
+
+		public override void DeInit()
+		{
+            ClearMetadata();
         }
 	}
 }

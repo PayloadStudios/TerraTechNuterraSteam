@@ -68,6 +68,7 @@ namespace CustomModules
 		// This method should add a module to the TankBlock prefab
 		public override bool CreateModuleForBlock(int blockID, ModdedBlockDefinition def, TankBlock block, JToken jToken)
 		{
+			Console.WriteLine($"[Nuterra] Loading CustomBlock module for {def.name} ({blockID})");
 			try
 			{
 				LoggingWrapper.Debug("[Nuterra] Loading CustomBlock module");
@@ -574,9 +575,9 @@ namespace CustomModules
 					// Weird export fix up for meshes
 					// Flip everything in x
 					bool toFlip = true;
-					if (jData.TryGetValue("AutoImported", out JToken isAutoImport) && isAutoImport.Type == JTokenType.Boolean)
+					if (CustomParser.TryGetTokenMultipleKeys(jData, out JToken flipToken, new string[] { "AutoImported", "PreserveModel" }) && flipToken.Type == JTokenType.Boolean)
                     {
-						toFlip = !isAutoImport.ToObject<bool>();
+						toFlip = !flipToken.ToObject<bool>();
                     }
 					if (toFlip)
 					{

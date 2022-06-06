@@ -74,8 +74,8 @@ namespace CustomModules
 
             // Targets where to log to: File and Console
             Type fileTarget = nlog.GetType("NLog.Targets.FileTarget", true);
-            PropertyInfo fileLayout = fileTarget.GetProperty("FileName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            PropertyInfo fileName = fileTarget.GetProperty("Layout", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            PropertyInfo fileName = fileTarget.GetProperty("FileName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            PropertyInfo fileLayout = fileTarget.GetProperty("Layout", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             PropertyInfo fileEnableDelete = fileTarget.GetProperty("EnableFileDelete", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             PropertyInfo fileDeleteOldFile = fileTarget.GetProperty("DeleteOldFileOnStartup", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             var logfile = Activator.CreateInstance(fileTarget, "logfile-NuterraSteam");
@@ -174,7 +174,7 @@ namespace CustomModules
                 null
             );
             registerLogger.Invoke(null, new object[] { logger, logManagerConfig });
-            Console.WriteLine("Registered logger");
+            Console.WriteLine("[NuterraSteam] Registered logger");
         }
 
         private static void InitLoggers(Assembly nlog)
@@ -183,31 +183,31 @@ namespace CustomModules
             Type logLevel = nlog.GetType("NLog.LogLevel", true);
             traceField = logLevel.GetField("Trace", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             traceLevel = traceField.GetValue(null);
-            trace = loggerType.GetMethod("Trace", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string), typeof(object[]) }, null);
+            trace = loggerType.GetMethod("Trace", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
 
             warnField = logLevel.GetField("Warn", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             warnLevel = warnField.GetValue(null);
-            warn = loggerType.GetMethod("Warn", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string), typeof(object[]) }, null);
+            warn = loggerType.GetMethod("Warn", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
 
             fatalField = logLevel.GetField("Fatal", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             fatalLevel = fatalField.GetValue(null);
-            fatal = loggerType.GetMethod("Fatal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string), typeof(object[]) }, null);
+            fatal = loggerType.GetMethod("Fatal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
             fatalException = loggerType.GetMethod("Fatal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(Exception) }, null);
-            fatalParams = loggerType.GetMethod("Fatal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(Exception), typeof(string), typeof(object[]) }, null);
+            fatalParams = loggerType.GetMethod("Fatal", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(Exception), typeof(string) }, null);
 
             errorField = logLevel.GetField("Error", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             errorLevel = errorField.GetValue(null);
-            error = loggerType.GetMethod("Error", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string), typeof(object[]) }, null);
+            error = loggerType.GetMethod("Error", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
             errorException = loggerType.GetMethod("Error", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(Exception) }, null);
-            errorParams = loggerType.GetMethod("Error", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(Exception), typeof(string), typeof(object[]) }, null);
+            errorParams = loggerType.GetMethod("Error", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(Exception), typeof(string) }, null);
 
             infoField = logLevel.GetField("Info", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             infoLevel = infoField.GetValue(null);
-            info = loggerType.GetMethod("Info", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string), typeof(object[]) }, null);
+            info = loggerType.GetMethod("Info", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
 
             debugField = logLevel.GetField("Debug", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             debugLevel = debugField.GetValue(null);
-            debug = loggerType.GetMethod("Debug", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string), typeof(object[]) }, null);
+            debug = loggerType.GetMethod("Debug", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
 
             offField = logLevel.GetField("Off", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             offLevel = offField.GetValue(null);
@@ -216,15 +216,23 @@ namespace CustomModules
         private static void ReadLoggingLevel()
         {
             string loggingLevelStr = null;
-            string generalLevel = CommandLineReader.GetArgument("+log_level");
-            if (generalLevel != null)
+            string[] commandLineArgs = CommandLineReader.GetCommandLineArgs();
+            for (int i = 0; i < commandLineArgs.Length; i++)
             {
-                loggingLevelStr = generalLevel;
-            }
-            string modLevel = CommandLineReader.GetArgument("+log_level_NuterraSteam");
-            if (modLevel != null)
-            {
-                loggingLevelStr = modLevel;
+                Console.WriteLine($"Checking command line arg {commandLineArgs[i]}");
+                if (commandLineArgs[i] == "+log_level" && i < commandLineArgs.Length - 1)
+                {
+                    if (loggingLevelStr == null)
+                    {
+                        Console.WriteLine($"[NuterraSteam] Custom log level of {commandLineArgs[i + 1]} read");
+                        loggingLevelStr = commandLineArgs[i + 1];
+                    }
+                }
+                else if (commandLineArgs[i] == "+log_level_NuterraSteam" && i < commandLineArgs.Length - 1)
+                {
+                    Console.WriteLine($"[NuterraSteam] Custom log level of {commandLineArgs[i + 1]} read");
+                    loggingLevelStr = commandLineArgs[i + 1];
+                }
             }
 
             switch (loggingLevelStr)
