@@ -22,12 +22,14 @@ namespace CustomModules.Logging
 
         internal struct TargetConfig
         {
+            public string filename;
             public string path;
             public string layout;
             public bool keepOldFiles;
 
-            internal TargetConfig(string path = null, string layout = null, bool keepOldFiles = false)
+            internal TargetConfig(string filename = null, string path = null, string layout = null, bool keepOldFiles = false)
             {
+                this.filename = filename;
                 this.path = path;
                 this.layout = layout;
                 this.keepOldFiles = keepOldFiles;
@@ -36,6 +38,7 @@ namespace CustomModules.Logging
 
         public object logger;
         public readonly byte minLoggingLevel;
+        public readonly string filename = null;
         public readonly string loggerID;
         public readonly string path = null;
         public readonly string layout = null;
@@ -49,6 +52,7 @@ namespace CustomModules.Logging
             this.minLoggingLevel = defaultLogLevel;
 
             // Setup targeting configs
+            this.filename = config.filename;
             this.path = config.path;
             this.layout = config.layout;
             this.keepOldFiles = config.keepOldFiles;
