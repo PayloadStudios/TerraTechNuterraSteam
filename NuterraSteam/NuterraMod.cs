@@ -250,7 +250,7 @@ namespace CustomModules
             {
                 if (!BlockRotationTable.m_BlockRotationGroupIndex.Remove(lookup))
                 {
-                    NuterraMod.logger.Error("[NuterraSteam] ERROR - FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
+                    NuterraMod.logger.Error("FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
                 }
             }
             addedRotationGroups.Clear();

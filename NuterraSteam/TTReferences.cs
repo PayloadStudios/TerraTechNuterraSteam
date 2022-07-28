@@ -78,7 +78,7 @@ namespace CustomModules
 				foreach (Material mat in Resources.FindObjectsOfTypeAll<Material>())
 				{
 					sMaterials[mat.name] = mat;
-					NuterraMod.logger.Debug("[Nuterra] Registering MATERIAL " + mat.name);
+					NuterraMod.logger.Debug("Registering MATERIAL " + mat.name);
 				}
 
 				foreach(Shader shader in Resources.FindObjectsOfTypeAll<Shader>())
@@ -208,7 +208,7 @@ namespace CustomModules
 				return result;
 			}
 
-			NuterraMod.logger.Error($"[Nuterra] FAILED to find material with name " + name);
+			NuterraMod.logger.Error($"FAILED to find material with name " + name);
 			return null;
 		}
 
@@ -223,10 +223,10 @@ namespace CustomModules
 				if (obj != null && type.IsAssignableFrom(obj.GetType()))
 				{
 					result = obj;
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found asset with name {name} of type {type}");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Found asset with name {name} of type {type}");
 					return true;
 				}
-				NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find asset with name {name} of type {type}");
+				NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Failed to find asset with name {name} of type {type}");
 			}
 
 			// One time cache each type for the base game assets
@@ -243,7 +243,7 @@ namespace CustomModules
 				}
 				catch (Exception e)
                 {
-					NuterraMod.logger.Error(e, $"[Nuterra] ERROR caching assets of type {type}");
+					NuterraMod.logger.Error($"ERROR caching assets of type {type}:\n{e.ToString()}");
                 }
 			}
 
@@ -271,10 +271,10 @@ namespace CustomModules
 				if (obj != null && obj is T)
 				{
 					result = obj as T;
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found asset with name {name} of type {typeof(T)}");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Found asset with name {name} of type {typeof(T)}");
 					return true;
 				}
-				NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find asset with name {name} of type {typeof(T)}");
+				NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Failed to find asset with name {name} of type {typeof(T)}");
 			}
 
 			// One time cache each type for the base game assets

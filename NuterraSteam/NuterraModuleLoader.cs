@@ -18,7 +18,7 @@ namespace CustomModules
 			RecipePrice = 0;
 			if (jData.TryGetValue("Recipe", out JToken jRecipe))
 			{
-				NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Recipe detected: {jRecipe.ToString()}");
+				NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Recipe detected: {jRecipe.ToString()}");
 
 				RecipeTable.Recipe recipe = new RecipeTable.Recipe();
 				Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> dictionary = new Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec>();
@@ -26,7 +26,7 @@ namespace CustomModules
 				if (jRecipe is JValue rString)
 				{
 					string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Adjusted Recipe Str: {recipeString}");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Adjusted Recipe Str: {recipeString}");
 					foreach (string item in recipeString)
 					{
 						RecipePrice += AppendToRecipe(dictionary, item, 1);
@@ -56,7 +56,7 @@ namespace CustomModules
 			}
 			else
 			{
-				NuterraMod.logger.Warn($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] No Recipe Found");
+				NuterraMod.logger.Warn($"{NuterraDeserializer.DeserializingBlock} | No Recipe Found");
 			}
 			return null;
 		}
@@ -64,16 +64,15 @@ namespace CustomModules
 		// This method should add a module to the TankBlock prefab
 		public override bool CreateModuleForBlock(int blockID, ModdedBlockDefinition def, TankBlock block, JToken jToken)
 		{
-			Console.WriteLine($"[Nuterra] Loading CustomBlock module for {def.name} ({blockID})");
+			NuterraMod.logger.Debug($"Loading CustomBlock module for {def.name} ({blockID})");
 			try
 			{
-				NuterraMod.logger.Debug("[Nuterra] Loading CustomBlock module");
 				NuterraMod.logger.Trace(def.m_Json.ToString());
 
 				if (jToken.Type == JTokenType.Object)
 				{
 					JObject jData = (JObject)jToken;
-					NuterraMod.logger.Debug("[Nuterra] CreationStart");
+					NuterraMod.logger.Debug("CreationStart");
 					// Get the mod contents so we can search for additional assets
 					ModContainer container = ManMods.inst.FindMod(def);
 					ModContents mod = container != null ? container.Contents : null;
@@ -85,7 +84,7 @@ namespace CustomModules
 
 					if (mod == null)
 					{
-						NuterraMod.logger.Error($"[Nuterra - {def.m_BlockDisplayName}] Could not find mod that this unoffical block is part of");
+						NuterraMod.logger.Error($"{def.m_BlockDisplayName} | Could not find mod that this unoffical block is part of");
 						return false;
 					}
 
@@ -103,7 +102,7 @@ namespace CustomModules
 						}
 						catch (ArgumentException exception)
                         {
-							NuterraMod.logger.Error(exception, $"Failed to register block {def.name} to name-ID map");
+							NuterraMod.logger.Error($"Failed to register block {def.name} to name-ID map:\n{exception.ToString()}");
                         }
 					}
 					else
@@ -119,7 +118,7 @@ namespace CustomModules
 					def.m_Rarity = CustomParser.LenientTryParseEnum<BlockRarity>(jData, "Rarity", def.m_Rarity);
 					block.m_BlockRarity = def.m_Rarity;
 					def.m_Grade = CustomParser.LenientTryParseInt(jData, "Grade", def.m_Grade);
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Grade: {def.m_Grade}");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Grade: {def.m_Grade}");
 
 					// Recipe
 					RecipeTable.Recipe recipe = ParseRecipe(jData, def.m_Corporation, blockID, out int RecipePrice);
@@ -129,18 +128,18 @@ namespace CustomModules
 					}
 					int overridePrice = CustomParser.LenientTryParseInt(jData, "Price", 0);
 					if (overridePrice > 0) {
-						NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Read override price of {overridePrice}");
+						NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Read override price of {overridePrice}");
 						def.m_Price = overridePrice;
 					}
 					else
                     {
-						NuterraMod.logger.Warn($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
+						NuterraMod.logger.Warn($"{NuterraDeserializer.DeserializingBlock} | No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
 					}
 					def.m_MaxHealth = CustomParser.LenientTryParseInt(jData, "HP", def.m_MaxHealth);
 
 					// ------------------------------------------------------
 					#region Reference - Copy a vanilla block
-					NuterraMod.logger.Debug("[Nuterra] Starting references");
+					NuterraMod.logger.Debug("Starting references");
 					bool keepRenderers = CustomParser.LenientTryParseBool(jData, "KeepRenderers", false);
 					bool keepReferenceRenderers = CustomParser.LenientTryParseBool(jData, "KeepReferenceRenderers", false);
 					bool keepColliders = CustomParser.LenientTryParseBool(jData, "KeepColliders", true);
@@ -173,7 +172,7 @@ namespace CustomModules
 						// for now that you are making 100% official or 100% unofficial JSONs
 						def.m_PhysicalPrefab = fakeTemplate;
 
-						NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found game prefab reference as {newObject}");
+						NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Found game prefab reference as {newObject}");
 
 						// TTQMM REF: DirectoryBlockLoader.CreateJSONBlock, the handling of these flags is a bit weird
 						if (keepRenderers)
@@ -244,7 +243,7 @@ namespace CustomModules
 					}
 					else
 					{
-						NuterraMod.logger.Error($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find GamePrefabReference {referenceBlock}");
+						NuterraMod.logger.Error($"{NuterraDeserializer.DeserializingBlock} | Failed to find GamePrefabReference {referenceBlock}");
 					}
 					#endregion
 					// ------------------------------------------------------
@@ -267,7 +266,7 @@ namespace CustomModules
 						if (refBlock != null)
 						{
 							moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
-							NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Swapped death explosion for {refBlock}");
+							NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Swapped death explosion for {refBlock}");
 						}
 					}
 					#endregion
@@ -275,7 +274,7 @@ namespace CustomModules
 
 					// ------------------------------------------------------
 					#region Tweaks
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block cells");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Handling block cells");
 					// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
 					bool usedBlockExtents = false;
 					bool cellsProcessed = false;
@@ -347,7 +346,7 @@ namespace CustomModules
 						}
 						block.filledCells = filledCells.ToArray();
 						usedBlockExtents = true;
-						NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Overwrote BlockExtents");
+						NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Overwrote BlockExtents");
 					}
 
 					// Handle failure to get cells
@@ -356,7 +355,7 @@ namespace CustomModules
 						block.filledCells = new IntVector3[] { new IntVector3 (0, 0, 0) };
                     }
 
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block APs");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Handling block APs");
 					// APs
 					bool manualAPs = false;
 					if (jData.TryGetValue("APs", out JToken jAPList) && jAPList.Type == JTokenType.Array)
@@ -420,7 +419,7 @@ namespace CustomModules
 						block.attachPoints = aps.ToArray();
 					}
 
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling block stats");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Handling block stats");
 
 					// Some basic block stats
 					damageable.DamageableType = CustomParser.LenientTryParseEnum<ManDamage.DamageableType>(jData, "DamageableType", damageable.DamageableType);
@@ -559,7 +558,7 @@ namespace CustomModules
 					#endregion
 					// ------------------------------------------------------
 
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Handling SubObjects");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Handling SubObjects");
 					// Start recursively adding objects with the root. 
 					// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
 					RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
@@ -597,7 +596,7 @@ namespace CustomModules
 			}
 			catch(Exception e)
 			{
-				NuterraMod.logger.Error($"[Nuterra] Caught exception {e}");
+				NuterraMod.logger.Error($"Caught exception:\n{e.ToString()}");
 				return false;
 			}
 		}
@@ -613,14 +612,14 @@ namespace CustomModules
 			}
 			else
 			{
-				NuterraMod.logger.Error("[Nuterra] Unable to inject Recipe");
+				NuterraMod.logger.Error("Unable to inject Recipe");
 			}
 			return true;
         }
 
         private void RecursivelyAddSubObject(TankBlock block, ModContents mod, Transform targetTransform, JObject jData, Material defaultMaterial, bool isNewSubObject)
 		{
-			NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Called RecursivelyAddSubObject");
+			NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Called RecursivelyAddSubObject");
 
 			// Material - Used in the next step
 			Material mat = null;
@@ -712,7 +711,7 @@ namespace CustomModules
 								mesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
 						}
 					}
-					Debug.Assert(mesh != null, $"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find mesh with name {meshName}");
+					Debug.Assert(mesh != null, $"{NuterraDeserializer.DeserializingBlock} | Failed to find mesh with name {meshName}");
 				}
 				else
                 {
@@ -728,7 +727,7 @@ namespace CustomModules
 					else if (obj is GameObject)
 						colliderMesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
 				}
-				Debug.Assert(colliderMesh != null, $"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find collider mesh with name {meshColliderName}");
+				Debug.Assert(colliderMesh != null, $"{NuterraDeserializer.DeserializingBlock} | Failed to find collider mesh with name {meshColliderName}");
 			}
 
 			// Remove the existing mesh if we set it to null
@@ -802,14 +801,14 @@ namespace CustomModules
 				bool makeBoxCollider = CustomParser.GetBoolMultipleKeys(jData, false, "MakeBoxCollider", "GenerateBoxCollider");
 				if(makeBoxCollider)
 				{
-					NuterraMod.logger.Debug($"[Nuterra {NuterraDeserializer.DeserializingBlock}] Generating box collider for {targetTransform.name}");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Generating box collider for {targetTransform.name}");
 					BoxCollider bc = targetTransform.gameObject.EnsureComponent<BoxCollider>();
 					bc.sharedMaterial = physMat;
 					if (mesh != null)
 					{
 						mesh.RecalculateBounds();
 						Vector3 size = mesh.bounds.size * 0.9f;
-						NuterraMod.logger.Debug($"[Nuterra {NuterraDeserializer.DeserializingBlock}] - Adding BoxCollider of size {size}");
+						NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | - Adding BoxCollider of size {size}");
 						bc.size = size;
 						bc.center = mesh.bounds.center;
 					}
@@ -823,7 +822,7 @@ namespace CustomModules
 				bool makeSphereCollider = CustomParser.LenientTryParseBool(jData, "MakeSphereCollider", false);
 				if(makeSphereCollider)
 				{
-					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Generating sphere collider for {block.name}");
+					NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Generating sphere collider for {block.name}");
 					SphereCollider sc = targetTransform.gameObject.EnsureComponent<SphereCollider>();
 					sc.radius = 0.5f;
 					sc.center = Vector3.zero;
@@ -861,7 +860,7 @@ namespace CustomModules
 						}
 						else
 						{
-							NuterraMod.logger.Warn($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find SubOverrideName tag in sub object JSON - assuming create new");
+							NuterraMod.logger.Warn($"{NuterraDeserializer.DeserializingBlock} | Failed to find SubOverrideName tag in sub object JSON - assuming create new");
 							subObject = null;
 						}
 
@@ -1000,12 +999,12 @@ namespace CustomModules
 				{
 					RecipeBuilder[chunk].m_Quantity += Count;
 				}
-				NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Chunk of type {chunk} added to recipe");
+				NuterraMod.logger.Debug($"{NuterraDeserializer.DeserializingBlock} | Chunk of type {chunk} added to recipe");
 				return RecipeManager.inst.GetChunkPrice(chunk);
 			}
 			else
 			{
-				NuterraMod.logger.Error($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] No ChunkTypes found matching given name, nor could parse as ID (int): " + Type);
+				NuterraMod.logger.Error($"{NuterraDeserializer.DeserializingBlock} | No ChunkTypes found matching given name, nor could parse as ID (int): " + Type);
 			}
 			return 0;
 		}
