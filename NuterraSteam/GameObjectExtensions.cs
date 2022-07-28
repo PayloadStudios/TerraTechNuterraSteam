@@ -25,28 +25,28 @@ namespace CustomModules
 		// These functions are copied from GameObjectJSON
 		public static Transform RecursiveFind(this Transform transform, string NameOfChild, string HierarchyBuildup = "")
 		{
-			LoggingWrapper.Trace($"Recursively checking for path {NameOfChild} in transform {transform.name} with hierarchy {HierarchyBuildup}");
+			NuterraMod.logger.Trace($"Recursively checking for path {NameOfChild} in transform {transform.name} with hierarchy {HierarchyBuildup}");
 			if (NameOfChild == "/") return transform;
 			string cName = NameOfChild.Substring(NameOfChild.LastIndexOf('/') + 1);
 
 			// Do one flat check on the current GO first
-			LoggingWrapper.Trace($"Checking for child with name {cName}, {transform.childCount} children");
+			NuterraMod.logger.Trace($"Checking for child with name {cName}, {transform.childCount} children");
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var child = transform.GetChild(i);
-				LoggingWrapper.Trace($"RecursiveFind check: {child.name}");
+				NuterraMod.logger.Trace($"RecursiveFind check: {child.name}");
 				if (child.name == cName)
 				{
 					string newHierarchy = HierarchyBuildup + "/" + child.name;
-					LoggingWrapper.Trace($"RecursiveFind: {newHierarchy} {NameOfChild}");
+					NuterraMod.logger.Trace($"RecursiveFind: {newHierarchy} {NameOfChild}");
 					if (newHierarchy.EndsWith(NameOfChild))
 					{
-						LoggingWrapper.Trace($"MATCHED {NameOfChild} to hierarchy {newHierarchy}");
+						NuterraMod.logger.Trace($"MATCHED {NameOfChild} to hierarchy {newHierarchy}");
 						return child;
 					}
 					else
                     {
-						LoggingWrapper.Trace($"FAILED to match {NameOfChild} to hierarchy {newHierarchy}");
+						NuterraMod.logger.Trace($"FAILED to match {NameOfChild} to hierarchy {newHierarchy}");
                     }
 				}
 			}
@@ -55,7 +55,7 @@ namespace CustomModules
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var c = transform.GetChild(i);
-				LoggingWrapper.Trace($"Calling recursiveFind: {c.name}");
+				NuterraMod.logger.Trace($"Calling recursiveFind: {c.name}");
 				string newHierarchy = HierarchyBuildup + "/" + c.name;
 				var child = c.RecursiveFind(NameOfChild, newHierarchy);
 				if (child != null)
@@ -70,7 +70,7 @@ namespace CustomModules
 		{
 			try
 			{
-				LoggingWrapper.Debug($"Searching for {nameOfProperty} under transform {transform.name}, fallback {fallback}");
+				NuterraMod.logger.Debug($"Searching for {nameOfProperty} under transform {transform.name}, fallback {fallback}");
 
 				int propIndex = nameOfProperty.IndexOf('.');
 				if (propIndex == -1)
@@ -88,7 +88,7 @@ namespace CustomModules
 					if (propIndex == -1)
 					{
 						var t = result.RecursiveFind(propertyPath);
-						LoggingWrapper.Trace($"<FindTrans:{propertyPath}>{(t == null ? "EMPTY" : "RETURN")}");
+						NuterraMod.logger.Trace($"<FindTrans:{propertyPath}>{(t == null ? "EMPTY" : "RETURN")}");
 						if (t == null && fallback != null && fallback != transform)
 							return fallback.RecursiveFindWithProperties(nameOfProperty);
 						return t;
@@ -98,11 +98,11 @@ namespace CustomModules
 					if (lastIndex > 0)
 					{
 						string transPath = propertyPath.Substring(0, lastIndex);
-						LoggingWrapper.Trace($"<Find:{transPath}>");
+						NuterraMod.logger.Trace($"<Find:{transPath}>");
 						result = result.RecursiveFind(transPath);
 						if (result == null)
 						{
-							LoggingWrapper.Trace("EMPTY");
+							NuterraMod.logger.Trace("EMPTY");
 							if (fallback != null && fallback != transform)
 								return fallback.RecursiveFindWithProperties(nameOfProperty);
 							return null;
@@ -114,27 +114,27 @@ namespace CustomModules
 					else propPath = propertyPath.Substring(propIndex, Math.Max(reIndex - propIndex, 0));
 					string propClass = propertyPath.Substring(lastIndex + 1, Math.Max(propIndex - lastIndex - 1, 0));
 
-					LoggingWrapper.Trace($"<Class:{propClass}>");
+					NuterraMod.logger.Trace($"<Class:{propClass}>");
 					Component component = result.gameObject.GetComponentWithIndex(propClass);
 					if (component == null)
 					{
-						LoggingWrapper.Warn("EMPTY : Cannot find Component " + propClass + "!");
+						NuterraMod.logger.Warn("EMPTY : Cannot find Component " + propClass + "!");
 						if (fallback != null && fallback != transform)
 							return fallback.RecursiveFindWithProperties(nameOfProperty);
-						LoggingWrapper.Error(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
-						LoggingWrapper.Error("RecursiveFindWithProperties failed!");
+						NuterraMod.logger.Error(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
+						NuterraMod.logger.Error("RecursiveFindWithProperties failed!");
 						return null;
 					}
-					LoggingWrapper.Trace($"<Property:{propPath}>");
+					NuterraMod.logger.Trace($"<Property:{propPath}>");
 					object value = component.GetValueFromPath(propPath);
 
 					if (reIndex == -1)
 					{
-						LoggingWrapper.Trace(value == null ? "EMPTY" : "RETURN");
+						NuterraMod.logger.Trace(value == null ? "EMPTY" : "RETURN");
 						return value;
 					}
 
-					LoggingWrapper.Trace("<GetTrans>");
+					NuterraMod.logger.Trace("<GetTrans>");
 					result = (value as Component).transform;
 					propertyPath = propertyPath.Substring(reIndex);
 				}
@@ -143,8 +143,8 @@ namespace CustomModules
 			{
 				if (fallback != null && fallback != transform)
 					return fallback.RecursiveFindWithProperties(nameOfProperty);
-				//LoggingWrapper.Log(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
-				//LoggingWrapper.Log("RecursiveFindWithProperties failed! " + E);
+				//NuterraMod.logger.Log(fallback == null ? "FALLBACK SEARCH TRANSFORM IS NULL" : "FALLBACK SEARCH TRANSFORM IS " + fallback.name);
+				//NuterraMod.logger.Log("RecursiveFindWithProperties failed! " + E);
 				return null;
 			}
 		}
@@ -170,7 +170,7 @@ namespace CustomModules
 				{
 					currentObject = tfield.GetValue(currentObject);
 					//if (currentObject == null)
-					//	LoggingWrapper.Log("WARNING: " + tfield.Name + " is null!");
+					//	NuterraMod.logger.Log("WARNING: " + tfield.Name + " is null!");
 					if (arr != -1)
 					{
 						//currentObject = tfield.FieldType.
@@ -184,7 +184,7 @@ namespace CustomModules
 					{
 						currentObject = tproperty.GetValue(currentObject, null);
 						//if (currentObject == null)
-						//	LoggingWrapper.Log("WARNING: " + tproperty.Name + " is null!");
+						//	NuterraMod.logger.Log("WARNING: " + tproperty.Name + " is null!");
 						currentType = tproperty.PropertyType;
 					}
 					else return null;

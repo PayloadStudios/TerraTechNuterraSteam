@@ -4,8 +4,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Linq;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using CustomModules.Logging;
 
 
 namespace CustomModules
@@ -17,6 +16,12 @@ namespace CustomModules
         internal static Dictionary<int, int> legacyToSessionIds = new Dictionary<int, int>();
         internal static List<int> nonLegacyBlocks = new List<int>();
         internal static List<BlockRotationTable.GroupIndexLookup> addedRotationGroups = new List<BlockRotationTable.GroupIndexLookup>();
+
+        internal static Logger logger;
+
+        // This doesn't get cleaned up, since rotation groups will always be the same as long as NuterraMod is here
+        internal static Dictionary<string, string> rotationGroupsMap = new Dictionary<string, string>();
+
         public static int LoadOrder = 2;
         internal static string TTSteamDir = Path.GetFullPath(Path.Combine(
             AppDomain.CurrentDomain.GetAssemblies()
@@ -30,11 +35,11 @@ namespace CustomModules
             // so we'll strip them out ourselves;
             input = Regex.Replace(input, @"^\s*//.*$", "", RegexOptions.Multiline);  // removes line comments like this
             input = Regex.Replace(input, @"/\*(\s|\S)*?\*/", "", RegexOptions.Multiline); /* comments like this */
-            // LoggingWrapper.Log(input);
+            // NuterraMod.logger.Log(input);
             input = Regex.Replace(input, @"([,\[\{\]\}\." + Regex.Escape("\"") + @"0-9]|null)\s*//[^\n]*\n", "$1\n", RegexOptions.Multiline);    // Removes mixed JSON comments
-            // LoggingWrapper.Log(input);
+            // NuterraMod.logger.Log(input);
             input = Regex.Replace(input, @",\s*([\}\]])", "\n$1", RegexOptions.Multiline);  // remove trailing ,
-            // LoggingWrapper.Log(input);
+            // NuterraMod.logger.Log(input);
             return input.Replace("JSONBLOCK", "Deserializer");
         }
 
@@ -49,7 +54,7 @@ namespace CustomModules
                     try
                     {
                         legacyToSessionIds.Add(legacyID, sessionID);
-                        LoggingWrapper.Info($"Registering block {blockName} with legacy ID {legacyID} to session ID {sessionID}");
+                        NuterraMod.logger.Info($"Registering block {blockName} with legacy ID {legacyID} to session ID {sessionID}");
                     }
                     catch (ArgumentException e)
                     {
@@ -61,27 +66,27 @@ namespace CustomModules
                             string modName = ModUtils.GetModFromCompoundId(blockName);
                             if (modName == "LegacyBlockLoader")
                             {
-                                LoggingWrapper.Warn($"Legacy Block {legacyID} already has Official block {currentBlockName} assigned to it");
+                                NuterraMod.logger.Warn($"Legacy Block {legacyID} already has Official block {currentBlockName} assigned to it");
                             }
                             else if (currentModName == "LegacyBlockLoader")
                             {
                                 legacyToSessionIds[legacyID] = sessionID;
-                                LoggingWrapper.Warn($"Reassigning Official block {blockName} to replace Legacy Block {legacyID}");
+                                NuterraMod.logger.Warn($"Reassigning Official block {blockName} to replace Legacy Block {legacyID}");
                             }
                             else
                             {
-                                LoggingWrapper.Error($"Legacy Block {legacyID} can be assigned to official blocks {blockName} or {currentBlockName}. Resolving to {currentBlockName}");
+                                NuterraMod.logger.Error($"Legacy Block {legacyID} can be assigned to official blocks {blockName} or {currentBlockName}. Resolving to {currentBlockName}");
                             }
                         }
                     }
                     catch (Exception e)
                     {
-                        LoggingWrapper.Fatal(e);
+                        NuterraMod.logger.Fatal(e);
                     }
                 }
                 else
                 {
-                    LoggingWrapper.Debug($"Block {blockName} does not have an associated legacy ID");
+                    NuterraMod.logger.Debug($"Block {blockName} does not have an associated legacy ID");
                 }
             }
         }
@@ -96,9 +101,21 @@ namespace CustomModules
             return blockIDToLegacyIDs.TryGetValue(blockID, out legacyID);
         }
 
+        internal static bool Inited = false;
+
+        public void ManagedEarlyInit()
+        {
+            if (!Inited)
+            {
+                Inited = true;
+                logger = new Logger("NuterraSteam");
+                logger.Info("Logger is setup");
+            }
+        }
+
         public override void EarlyInit()
         {
-            LoggingWrapper.Init();
+            this.ManagedEarlyInit();
         }
 
         public override bool HasEarlyInit()
@@ -108,7 +125,8 @@ namespace CustomModules
 
         public static void SetupMetadata()
         {
-            ModSessionInfo sessionInfo = (ModSessionInfo)m_CurrentSession.GetValue(Singleton.Manager<ManMods>.inst);
+            ManMods manMods = Singleton.Manager<ManMods>.inst;
+            ModSessionInfo sessionInfo = (ModSessionInfo)m_CurrentSession.GetValue(manMods);
 
             // Clear this map. We never clear blockNametoLegacyIDs, since te keys guaranteed unique, and can stay indefinitely
             // As such, we will repopulate the legacyToSessionIds map based on historical data (only with stuff present in the current mod sesion)
@@ -185,6 +203,35 @@ namespace CustomModules
                     }
                 }
             }
+
+            // block ID reverse lookup doesn't exist yet, so we have to make one ourselves
+            Dictionary<string, int> temporaryReverseLookup = new Dictionary<string, int>();
+            foreach (KeyValuePair<int, string> keyValuePair in sessionInfo.BlockIDs)
+            {
+                temporaryReverseLookup.Add(keyValuePair.Value, keyValuePair.Key);
+            }
+
+            // Repopulate rotation groups overrides
+            foreach (KeyValuePair<string, string> keyValuePair in rotationGroupsMap)
+            {
+                string CompoundBlockID = keyValuePair.Key;
+                string RotationGroup = keyValuePair.Value;
+
+                if (temporaryReverseLookup.TryGetValue(CompoundBlockID, out int blockID))
+                {
+                    ModdedBlockDefinition blockDef = manMods.FindModdedAsset<ModdedBlockDefinition>(CompoundBlockID);
+                    if (blockDef != null)
+                    {
+                        Visible visible = blockDef.m_PhysicalPrefab.GetComponent<Visible>();
+                        if (visible != null)
+                        {
+                            // We only add rotation groups if block def is valid, and visible is null
+                            // AKA we are not running JSONLoaders, and are reusing what's in the component pools
+                            AddRotationGroupsOverride(blockID, RotationGroup);
+                        }
+                    }
+                }
+            }
         }
 
         public static void ClearMetadata()
@@ -198,12 +245,12 @@ namespace CustomModules
             nonLegacyBlocks.Clear();
 
             //Reset Block Rotation Table
-            BlockRotationTable BlockRotationTable = (BlockRotationTable)NuterraModuleLoader.m_BlockRotationTable.GetValue(Singleton.Manager<ManTechBuilder>.inst);
+            BlockRotationTable BlockRotationTable = (BlockRotationTable)m_BlockRotationTable.GetValue(Singleton.Manager<ManTechBuilder>.inst);
             foreach (BlockRotationTable.GroupIndexLookup lookup in addedRotationGroups)
             {
                 if (!BlockRotationTable.m_BlockRotationGroupIndex.Remove(lookup))
                 {
-                    LoggingWrapper.Error("[NuterraSteam] ERROR - FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
+                    NuterraMod.logger.Error("[NuterraSteam] ERROR - FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
                 }
             }
             addedRotationGroups.Clear();
@@ -218,6 +265,21 @@ namespace CustomModules
 		public override void DeInit()
 		{
             ClearMetadata();
+        }
+
+        private const BindingFlags InstanceFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic;
+        internal static readonly FieldInfo m_BlockRotationTable = typeof(ManTechBuilder).GetField("m_BlockRotationTable", InstanceFlags);
+
+        internal static BlockRotationTable.GroupIndexLookup AddRotationGroupsOverride(int blockID, string RotationGroupName)
+        {
+            BlockRotationTable BlockRotationTable = (BlockRotationTable)m_BlockRotationTable.GetValue(Singleton.Manager<ManTechBuilder>.inst);
+            BlockRotationTable.GroupIndexLookup newLookup = new BlockRotationTable.GroupIndexLookup
+            {
+                blockType = blockID,
+                groupName = RotationGroupName
+            };
+            BlockRotationTable.m_BlockRotationGroupIndex.Add(newLookup);
+            return newLookup;
         }
 	}
 }

@@ -78,7 +78,7 @@ namespace CustomModules
 				foreach (Material mat in Resources.FindObjectsOfTypeAll<Material>())
 				{
 					sMaterials[mat.name] = mat;
-					LoggingWrapper.Debug("[Nuterra] Registering MATERIAL " + mat.name);
+					NuterraMod.logger.Debug("[Nuterra] Registering MATERIAL " + mat.name);
 				}
 
 				foreach(Shader shader in Resources.FindObjectsOfTypeAll<Shader>())
@@ -99,7 +99,7 @@ namespace CustomModules
 			int separator = blockPath.IndexOfAny(new char[] { '.', '/' });
 			if (separator == -1)
 			{
-				LoggingWrapper.Warn("Reference path is invalid! Expected block name and path to GameObject (" + blockPath + ")");
+				NuterraMod.logger.Warn("Reference path is invalid! Expected block name and path to GameObject (" + blockPath + ")");
 				return false;
 			}
 			string blockReferenceString = blockPath.Substring(0, separator);
@@ -112,7 +112,7 @@ namespace CustomModules
 
 			if (refBlock == null)
 			{
-				LoggingWrapper.Warn("Reference block is nonexistent! (" + blockReferenceString + ")");
+				NuterraMod.logger.Warn("Reference block is nonexistent! (" + blockReferenceString + ")");
 				return false;
 			}
 			string sRefPath = blockPath.Substring(separator + 1);
@@ -136,7 +136,7 @@ namespace CustomModules
 			*/
 			if (reference == null)
 			{
-				LoggingWrapper.Warn("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
+				NuterraMod.logger.Warn("Reference result is null! (block" + blockReferenceString + ", path " + sRefPath + ")");
 				return false;
 			}
 			return true;
@@ -208,7 +208,7 @@ namespace CustomModules
 				return result;
 			}
 
-			LoggingWrapper.Error($"[Nuterra] FAILED to find material with name " + name);
+			NuterraMod.logger.Error($"[Nuterra] FAILED to find material with name " + name);
 			return null;
 		}
 
@@ -223,10 +223,10 @@ namespace CustomModules
 				if (obj != null && type.IsAssignableFrom(obj.GetType()))
 				{
 					result = obj;
-					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found asset with name {name} of type {type}");
+					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found asset with name {name} of type {type}");
 					return true;
 				}
-				LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find asset with name {name} of type {type}");
+				NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find asset with name {name} of type {type}");
 			}
 
 			// One time cache each type for the base game assets
@@ -243,7 +243,7 @@ namespace CustomModules
 				}
 				catch (Exception e)
                 {
-					LoggingWrapper.Error(e, $"[Nuterra] ERROR caching assets of type {type}");
+					NuterraMod.logger.Error(e, $"[Nuterra] ERROR caching assets of type {type}");
                 }
 			}
 
@@ -271,10 +271,10 @@ namespace CustomModules
 				if (obj != null && obj is T)
 				{
 					result = obj as T;
-					LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found asset with name {name} of type {typeof(T)}");
+					NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Found asset with name {name} of type {typeof(T)}");
 					return true;
 				}
-				LoggingWrapper.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find asset with name {name} of type {typeof(T)}");
+				NuterraMod.logger.Debug($"[Nuterra - {NuterraDeserializer.DeserializingBlock}] Failed to find asset with name {name} of type {typeof(T)}");
 			}
 
 			// One time cache each type for the base game assets
