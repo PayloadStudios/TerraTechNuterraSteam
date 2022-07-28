@@ -46,7 +46,7 @@ namespace CustomModules.Logging
 
         internal string logPath = "";
 
-        internal Logger(string loggerID, TargetConfig config = default, byte defaultLogLevel = (byte)LogLevel.INFO)
+        internal Logger(string loggerID, TargetConfig config = default, byte defaultLogLevel = (byte)LogLevel.ERROR)
         {
             this.loggerID = loggerID;
             this.minLoggingLevel = defaultLogLevel;
@@ -62,7 +62,6 @@ namespace CustomModules.Logging
             string[] commandLineArgs = CommandLineReader.GetCommandLineArgs();
             for (int i = 0; i < commandLineArgs.Length; i++)
             {
-                Console.WriteLine($"Checking command line arg {commandLineArgs[i]}");
                 if (commandLineArgs[i] == "+log_level" && i < commandLineArgs.Length - 1)
                 {
                     if (loggingLevelStr == null)
@@ -82,9 +81,16 @@ namespace CustomModules.Logging
             // Assign the correct level to the logger
             try
             {
-                LogLevel loggingLevel = (LogLevel)Enum.Parse(typeof(LogLevel), loggingLevelStr, true);
-                this.minLoggingLevel = (byte) loggingLevel;
-                Console.WriteLine($"[{loggerID}] Logging {loggingLevel} and up");
+                if (loggingLevelStr != null)
+                {
+                    LogLevel loggingLevel = (LogLevel)Enum.Parse(typeof(LogLevel), loggingLevelStr, true);
+                    this.minLoggingLevel = (byte)loggingLevel;
+                    Console.WriteLine($"[{loggerID}] Logging {loggingLevel} and up");
+                }
+                else
+                {
+                    Console.WriteLine($"[{loggerID}] No log level found. Defaulting to {this.minLoggingLevel}");
+                }
             }
             catch (Exception ex)
             {
