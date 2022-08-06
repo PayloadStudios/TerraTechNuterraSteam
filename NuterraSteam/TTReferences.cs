@@ -31,7 +31,7 @@ namespace CustomModules
 			=> Value.Replace("(", "").Replace(")", "").Replace("_", "").Replace(" ", "").ToLower();
 
 
-		public static void TryInit()
+		public static IEnumerator<float> Init()
 		{
 			if (!sInited)
 			{
@@ -43,7 +43,17 @@ namespace CustomModules
 				sMaterials = new Dictionary<string, Material>();
 				sObjectsByType = new Dictionary<Type, Dictionary<string, UnityEngine.Object>>();
 
-				foreach (GameObject go in Resources.FindObjectsOfTypeAll<GameObject>())
+				GameObject[] allGOs = Resources.FindObjectsOfTypeAll<GameObject>();
+				yield return 0.0f;
+				Material[] allMats = Resources.FindObjectsOfTypeAll<Material>();
+				yield return 0.5f;
+				Shader[] allShaders = Resources.FindObjectsOfTypeAll<Shader>();
+				yield return 1.0f;
+
+				int processed = 0;
+				int total = allGOs.Length + allMats.Length + allShaders.Length;
+
+				foreach (GameObject go in allGOs)
 				{
 					try
 					{
@@ -73,24 +83,31 @@ namespace CustomModules
 						}
 					}
 					catch { /*fail silently*/ }
+					processed++;
+					yield return ((float) processed) / total;
 				}
 
-				foreach (Material mat in Resources.FindObjectsOfTypeAll<Material>())
+				foreach (Material mat in allMats)
 				{
 					sMaterials[mat.name] = mat;
 					NuterraMod.logger.Debug("Registering MATERIAL " + mat.name);
+					processed++;
+					yield return ((float)processed) / total;
 				}
 
-				foreach(Shader shader in Resources.FindObjectsOfTypeAll<Shader>())
+				foreach(Shader shader in allShaders)
 				{
 					if(shader.name == "StandardTankBlock")
 					{
 						kMissingTextureTankBlock = new Material(shader);
 						kMissingTextureTankBlock.SetColor("_EmissionColor", Color.magenta);
 					}
+					processed++;
+					yield return ((float)processed) / total;
 				}
-				
+				yield return 1.0f;
 			}
+			yield break;
 		}
 
 		public static bool GetReferenceFromBlockResource(string blockPath, out object reference)
@@ -152,7 +169,6 @@ namespace CustomModules
 		}
 		public static GameObject FindOriginalBlockByName(string name)
         {
-			TryInit();
 			string safeName = TrimForSafeSearch(name);
 			if (originalBlocksByName.TryGetValue(safeName, out GameObject result)) {
 				return result;
@@ -161,7 +177,6 @@ namespace CustomModules
 		}
 		public static GameObject FindOriginalBlockByID(int id)
         {
-			TryInit();
 			if (originalBlocksByID.TryGetValue(id, out GameObject result))
 				return result;
 			return null;
@@ -179,7 +194,6 @@ namespace CustomModules
 
 		public static GameObject FindBlockReferenceByName(string name)
 		{
-			TryInit();
 			string safeName = TrimForSafeSearch(name);
 			if (sBlocksByName.TryGetValue(safeName, out GameObject result))
 			{
@@ -190,7 +204,6 @@ namespace CustomModules
 
 		public static GameObject FindBlockReferenceByID(int id)
 		{
-			TryInit();
 			if (sBlocksByID.TryGetValue(id, out GameObject result))
 				return result;
 			return null;
@@ -198,7 +211,6 @@ namespace CustomModules
 
 		public static Material FindMaterial(string name)
 		{
-			TryInit();
 			if (materialRenames.TryGetValue(name, out string currentName))
             {
 				name = currentName;
@@ -214,7 +226,6 @@ namespace CustomModules
 
 		public static bool TryFind(string name, ModContents mod, Type type, out object result)
 		{
-			TryInit();
 			UnityEngine.Object obj;
 			if (mod != null)
 			{
@@ -260,7 +271,6 @@ namespace CustomModules
 		// TTQMM Ref: Sorta like GameObjectJSON.GetObjectFromUserResources
 		public static bool TryFind<T>(string name, ModContents mod, out T result) where T : UnityEngine.Object
 		{
-			TryInit();
 
 			UnityEngine.Object obj;
 

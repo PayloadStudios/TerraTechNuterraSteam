@@ -256,10 +256,24 @@ namespace CustomModules
             addedRotationGroups.Clear();
         }
 
+        // This satisfies the 0ModManager interface for loading across multiple frames
+        public IEnumerator<float> InitIterator()
+        {
+            SetupMetadata();
+            JSONBlockLoader.RegisterModuleLoader(new NuterraModuleLoader());
+
+            IEnumerator<float> setupIterator = TTReferences.Init();
+            while (setupIterator.MoveNext())
+            {
+                yield return setupIterator.Current;
+            }
+            yield break;
+        }
+
         public override void Init()
 		{
-            SetupMetadata();
-			JSONBlockLoader.RegisterModuleLoader(new NuterraModuleLoader());
+            IEnumerator<float> init = InitIterator();
+            while (init.MoveNext()) { }
 		}
 
 		public override void DeInit()
