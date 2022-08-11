@@ -219,10 +219,16 @@ namespace CustomModules
 						{
 							Vector3 offset = hasRefOffset ? CustomParser.GetVector3(jOffset) : Vector3.zero;
 							Vector3 scale = hasRefScale ? CustomParser.GetVector3(jScale) : Vector3.one;
-							Vector3 euler = hasRefRotation ? CustomParser.GetVector3(jEuler) : Vector3.zero;
+							Vector3 rotation = hasRefRotation ? CustomParser.GetVector3(jEuler) : Vector3.zero;
 
 							foreach (Transform child in newObject.transform)
 							{
+								if (hasRefRotation)
+								{
+									child.Rotate(rotation, Space.Self);
+									child.localPosition = Quaternion.Euler(rotation) * child.localPosition;
+								}
+
 								if (hasRefScale)
 								{
 									child.localScale = Vector3.Scale(child.localScale, scale);
@@ -232,11 +238,6 @@ namespace CustomModules
 								if (hasRefOffset)
 								{
 									child.localPosition += offset;
-								}
-
-								if (hasRefRotation)
-								{
-									child.localEulerAngles = euler;
 								}
 							}
 						}
@@ -454,14 +455,12 @@ namespace CustomModules
 
 						// TODO: Weird thing about offseting colliders from Nuterra
 						// Absolutely no idea what it does
-						/*
 						for (int i = 0; i < block.transform.childCount; i++)
 						{
 							transform = block.transform.GetChild(i);
 							if (transform.name.Length < 5 && transform.name.EndsWith("col")) // "[a-z]col"
 								transform.localPosition = CenterOfMass;
 						}
-						*/
 
 						ModuleCustomBlock customBlock = block.gameObject.EnsureComponent<ModuleCustomBlock>();
 						customBlock.HasInjectedCenterOfMass = true;
