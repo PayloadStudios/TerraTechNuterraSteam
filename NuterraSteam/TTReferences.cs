@@ -232,18 +232,25 @@ namespace CustomModules
 			// One time cache each type for the base game assets
 			if (!sObjectsByType.TryGetValue(type, out Dictionary<string, UnityEngine.Object> dictionary))
 			{
-				try
+				if (!typeof(Transform).IsAssignableFrom(type) && !typeof(GameObject).IsAssignableFrom(type))
 				{
-					dictionary = new Dictionary<string, UnityEngine.Object>();
-					foreach (UnityEngine.Object t in Resources.FindObjectsOfTypeAll(type))
+					try
 					{
-						dictionary[t.name] = t;
+						dictionary = new Dictionary<string, UnityEngine.Object>();
+						foreach (UnityEngine.Object t in Resources.FindObjectsOfTypeAll(type))
+						{
+							dictionary[t.name] = t;
+						}
+						sObjectsByType.Add(type, dictionary);
 					}
-					sObjectsByType.Add(type, dictionary);
+					catch (Exception e)
+					{
+						NuterraMod.logger.Error($"ERROR caching assets of type {type}:\n{e.ToString()}");
+					}
 				}
-				catch (Exception e)
+				else
                 {
-					NuterraMod.logger.Error($"ERROR caching assets of type {type}:\n{e.ToString()}");
+					NuterraMod.logger.Trace($"[{mod.ModName}] Attempting to find asset with name {name} of prohibited type {type}");
                 }
 			}
 

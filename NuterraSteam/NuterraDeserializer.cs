@@ -507,13 +507,15 @@ namespace CustomModules
 				if (TTReferences.GetReferenceFromBlockResource(search, out var result)) // Get value from a block in the game
 					return result;
 			}
-			else if (TTReferences.TryFind(search, DeserializingMod, outType, out object result))
-			{
-				NuterraMod.logger.Trace($"{DeserializingBlock} |  value has been retrieved for {search}");
-				return result; // Get value from a value in the user database
-			}
 			else
 			{
+
+				if (!typeof(Transform).IsAssignableFrom(outType) && !typeof(GameObject).IsAssignableFrom(outType) && TTReferences.TryFind(search, DeserializingMod, outType, out object result))
+				{
+					NuterraMod.logger.Trace($"{DeserializingBlock} |  value has been retrieved for {search}");
+					return result; // Get value from a value in the user database
+				}
+
 				NuterraMod.logger.Trace($"{DeserializingBlock} |  Attempting to search the local transform tree for {search}");
 				try
 				{
@@ -618,7 +620,11 @@ namespace CustomModules
 		// TODO: Do we have to have this??
 		internal static Transform sCurrentSearchTransform = null;
 		private static Stack<Transform> sTransformSearchStack = new Stack<Transform>();
-		private static Transform GetRootSearchTransform() { return sCurrentSearchTransform; }
+		private static Transform GetRootSearchTransform()
+		{
+			NuterraMod.logger.Debug($"Current root search transform is {sCurrentSearchTransform}");
+			return sCurrentSearchTransform;
+		}
 		private static Transform GetCurrentSearchTransform() {
 			Transform transform = sTransformSearchStack.Peek();
 			NuterraMod.logger.Debug($"Current search transform is {transform}");
