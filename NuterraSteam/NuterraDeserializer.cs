@@ -318,7 +318,7 @@ namespace CustomModules
 						NuterraMod.logger.Debug($"{DeserializingBlock} |  Deserializing gameObject {name}");
 						if (Duplicate && (name.Contains('/') || name.Contains('.')))
 						{
-							object foundObject = GetCurrentSearchTransform().RecursiveFindWithProperties(name);
+							object foundObject = GetCurrentSearchTransform().RecursiveFindWithProperties(name, fallback: GetRootSearchTransform());
 							if (foundObject != null)
 							{
 								if (foundObject is Component foundComponent)
