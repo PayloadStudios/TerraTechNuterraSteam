@@ -50,7 +50,6 @@ namespace CustomModules
 				recipe.m_InputItems = new RecipeTable.Recipe.ItemSpec[dictionary.Count];
 				dictionary.Values.CopyTo(recipe.m_InputItems, 0);
 				recipe.m_OutputItems[0] = new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Block, blockID), 1);
-				Singleton.Manager<RecipeManager>.inst.RegisterCustomBlockFabricatorRecipe(blockID, corp, recipe);
 
 				return recipe;
 			}
@@ -607,7 +606,15 @@ namespace CustomModules
 
 			if (recipe != null)
 			{
-				Singleton.Manager<RecipeManager>.inst.RegisterCustomBlockFabricatorRecipe(blockID, def.m_Corporation, recipe);
+				try
+				{
+					Singleton.Manager<RecipeManager>.inst.RegisterCustomBlockFabricatorRecipe(blockID, def.m_Corporation, recipe);
+				}
+				catch (Exception e)
+				{
+					NuterraMod.logger.Error("Failed to inject custom recipe:");
+					NuterraMod.logger.Error(e);
+				}
 			}
 			else
 			{
