@@ -28,10 +28,11 @@ namespace CustomModules
 		// I've embedded these two functions
 		public static object DeserializeJSONObject(object target, Type targetType, JObject jObject)
 		{
+			NuterraMod.logger.Debug($"Deserializing JSON OBJ");
 			// Let's get reflective!
 			foreach (JProperty jProperty in jObject.Properties())
 			{
-				NuterraMod.logger.Trace($" Attempting to deserialize {targetType.ToString()}.{jProperty.Name}");
+				NuterraMod.logger.Debug($" Attempting to deserialize {targetType.ToString()}.{jProperty.Name}");
 				BindingFlags bind = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 				try
 				{
@@ -136,11 +137,17 @@ namespace CustomModules
                             }
 						}
                     }
+					else
+                    {
+						NuterraMod.logger.Warn($" Property Value is NULL??");
+						DeserializeValueIntoTarget(target, memberInfo, null);
+						continue;
+					}
 
 					bool isTransformOrGO = typeof(Transform).IsAssignableFrom(memberType) || typeof(GameObject).IsAssignableFrom(memberType);
 					bool isIterable = !isTransformOrGO && (memberType.IsArray || (memberType.IsGenericType && typeof(IList).IsAssignableFrom(memberType)));
 					bool isDictionary = !isTransformOrGO && memberType.IsGenericType && typeof(IDictionary).IsAssignableFrom(memberType);
-					NuterraMod.logger.Trace($"Property is of type {memberType.FullName.ToString()}, iterable: {isIterable}, dictionary: {isDictionary}");
+					NuterraMod.logger.Debug($"Property is of type {memberType.FullName.ToString()}, iterable: {isIterable}, dictionary: {isDictionary}");
 
 					// Switch on the type of JSON we are provided with
 					switch (jProperty.Value.Type)
@@ -200,21 +207,23 @@ namespace CustomModules
 						default:
 						{
 							// The leaf node, parse the value into place
-							if (!isIterable && !isDictionary) {
+							if (!isIterable && !isDictionary)
+							{
+								NuterraMod.logger.Debug($"Deserializing JValue into target");
 								if (jProperty.Value is JValue jValue)
 								{
-									NuterraMod.logger.Debug($"Attempting to deserialize value {jValue.Value.ToString()} into field {name}");
+									NuterraMod.logger.Debug($"Attempting to deserialize value {jValue.Value?.ToString()} into field {name}");
 									DeserializeValueIntoTarget(target, memberInfo, jValue);
 								}
 								else
-                                {
-									NuterraMod.logger.Error($"Attempting to deserialize NON-VALUE {jProperty.Value.ToString()} into field {name}");
+								{
+									NuterraMod.logger.Error($"Attempting to deserialize NON-VALUE {jProperty.Value?.ToString()} into field {name}");
 								}
 							}
-							else if (jProperty.Value is JValue jValue && jValue.Value == null)
+							else if (jProperty.Value.Type == JTokenType.Null || (jProperty.Value is JValue jValue && jValue.Value == null))
 							{
-								NuterraMod.logger.Debug($"Attempting to deserialize value {jValue.Value.ToString()} into field {name}");
-								DeserializeValueIntoTarget(target, memberInfo, jValue);
+								NuterraMod.logger.Debug($"Attempting to deserialize null into field {name}");
+								DeserializeValueIntoTarget(target, memberInfo, null);
 							}
 							else
                             {
@@ -230,6 +239,7 @@ namespace CustomModules
 				}
 			}
 
+			NuterraMod.logger.Debug($"JSON OBJ DONE");
 			return target;
 		}
 
@@ -508,6 +518,18 @@ namespace CustomModules
 			}
 		}
 
+		private struct Conversion: IEquatable<Conversion>
+        {
+			internal Type from;
+			internal Type to;
+
+            public bool Equals(Conversion other)
+            {
+				return this.from == other.from && this.to == other.to;
+            }
+        }
+		private static Dictionary<Conversion, Delegate> ConvertorCache = new Dictionary<Conversion, Delegate>();
+
 		// Try to find and execute a convertor from the JSON value type to the Property type
 		private static bool TryConvert(Type valueType, Type targetType, object value, out object converted)
 		{
@@ -523,7 +545,22 @@ namespace CustomModules
 				else
 				{
 					NuterraMod.logger.Debug($"Trying dynamic conversion");
-					converted = Convert.ChangeType(value, targetType);
+					Conversion conversion = new Conversion
+					{
+						from = valueType,
+						to = targetType
+					};
+					if (!ConvertorCache.TryGetValue(conversion, out Delegate convertorDelegate))
+					{
+						string debugName = $"{valueType}=>{targetType}";
+						NuterraMod.logger.Debug(debugName);
+						NuterraMod.logger.Debug(convertor.ToString());
+						LambdaExpression castLambda = Expression.Lambda(convertor, debugName, new ParameterExpression[] { convertor.Operand as ParameterExpression });
+						NuterraMod.logger.Debug(castLambda.ToString());
+						convertorDelegate = castLambda.Compile();
+						ConvertorCache.Add(conversion, convertorDelegate);
+					}
+					converted = convertorDelegate.DynamicInvoke(value);
 					return true;
 				}
 			}
@@ -537,26 +574,28 @@ namespace CustomModules
 			if (member is FieldInfo field)
 			{
 				object converted = null;
-				bool successfulConversion = false;
-				// Try invoking setter directly
-				try
+				if (jValue?.Value != null)
 				{
-					Type valueType = jValue.Value.GetType();
-					Type fieldType = field.FieldType;
-					// If we're converting to a system defined namespace, use the builtin
-					if (!fieldType.Namespace.StartsWith("System") && TryConvert(valueType, fieldType, jValue.Value, out converted))
+					bool successfulConversion = false;
+					// Try invoking setter directly
+					try
 					{
-						successfulConversion = true;
+						Type valueType = jValue.Value.GetType();
+						Type fieldType = field.FieldType;
+						// If we're converting to a system defined namespace, use the builtin
+						if (!fieldType.Namespace.StartsWith("System") && TryConvert(valueType, fieldType, jValue.Value, out converted))
+						{
+							successfulConversion = true;
+						}
 					}
-				}
-				catch (Exception e)
-				{
-					NuterraMod.logger.Warn($"Convertor failed");
-					NuterraMod.logger.Warn(e.ToString());
-				}
-				if (!successfulConversion)
-				{
-					converted = DeserializeValue(jValue, field.FieldType);
+					catch (Exception e)
+					{
+						NuterraMod.logger.Warn($"Convertor failed");
+					}
+					if (!successfulConversion)
+					{
+						converted = DeserializeValue(jValue, field.FieldType);
+					}
 				}
 				member.SetValueOfField(target, converted);
 			}
@@ -568,26 +607,29 @@ namespace CustomModules
 					object instance = setter.IsStatic ? null : target;
 
 					object converted = null;
-					bool successfulConversion = false;
-					// Try using convertor first
-					try
+					if (jValue?.Value != null)
 					{
-						Type valueType = jValue.Value.GetType();
-						Type propertyType = property.PropertyType;
-						// If we're converting to a system defined namespace, use the builtin
-						if (!propertyType.Namespace.StartsWith("System") && TryConvert(valueType, propertyType, jValue.Value, out converted))
+						bool successfulConversion = false;
+						// Try using convertor first
+						try
 						{
-							successfulConversion = true;
+							Type valueType = jValue.Value.GetType();
+							Type propertyType = property.PropertyType;
+							// If we're converting to a system defined namespace, use the builtin
+							if (!propertyType.Namespace.StartsWith("System") && TryConvert(valueType, propertyType, jValue.Value, out converted))
+							{
+								successfulConversion = true;
+							}
 						}
-					}
-					catch (Exception e)
-					{
-						NuterraMod.logger.Warn($"Convertor failed");
-						NuterraMod.logger.Warn(e.ToString());
-					}
-					if (!successfulConversion)
-					{
-						converted = DeserializeValue(jValue, property.PropertyType);
+						catch (Exception e)
+						{
+							NuterraMod.logger.Warn($"Convertor failed");
+							NuterraMod.logger.Warn(e.ToString());
+						}
+						if (!successfulConversion)
+						{
+							converted = DeserializeValue(jValue, property.PropertyType);
+						}
 					}
                     setter.Invoke(instance, new object[] { converted });
                 }
@@ -664,8 +706,10 @@ namespace CustomModules
 		{
 			try // Try transforming to the target type
 			{
-				NuterraMod.logger.Debug($"Trying to convert value {jValue.Value} to type {type}");
-				return jValue.ToObject(type);
+				NuterraMod.logger.Debug($"Trying to cast value {jValue.Value} to type {type}");
+				object value = jValue.ToObject(type);
+				NuterraMod.logger.Debug($"Cast successful");
+				return value;
 			}
 			catch // If we failed, we can try interpreting the jValue as a reference string
 			{
@@ -945,6 +989,7 @@ namespace CustomModules
 					NuterraMod.logger.Warn($"Property {tProp.Name} on type {tProp.DeclaringType} is not writeable");
                 }
 			}
+			NuterraMod.logger.Debug($"SetJSON END");
 		}
 
 		// TTQMM Ref: GameObjectJSON.SetJSONObject_Internal(JObject jObject, string Spacing, bool Wipe, bool Instantiate, object original, Type type, string name)
