@@ -18,6 +18,12 @@ namespace CustomModules
         internal static List<BlockRotationTable.GroupIndexLookup> addedRotationGroups = new List<BlockRotationTable.GroupIndexLookup>();
 
         internal static Logger logger;
+        internal static Logger modLogger;
+        internal static Logger.TargetConfig LoggerTarget = new Logger.TargetConfig {
+            path = "NuterraBlocks",
+            layout = "${longdate} ${level:uppercase=true:padding=-5:alignmentOnTruncation=left} ${message}  ${exception}",
+            keepOldFiles = false
+        };
 
         // This doesn't get cleaned up, since rotation groups will always be the same as long as NuterraMod is here
         internal static Dictionary<string, string> rotationGroupsMap = new Dictionary<string, string>();
@@ -28,6 +34,7 @@ namespace CustomModules
             .Where(assembly => assembly.GetName().Name == "Assembly-CSharp").First().Location
             .Replace("Assembly-CSharp.dll", ""), @"../../"
         ));
+        internal static string NuterraLogsDir = Path.Combine(TTSteamDir, "Logs", "NuterraBlocks");
 
         internal static string Format(string input)
         {
@@ -35,11 +42,11 @@ namespace CustomModules
             // so we'll strip them out ourselves;
             input = Regex.Replace(input, @"^\s*//.*$", "", RegexOptions.Multiline);  // removes line comments like this
             input = Regex.Replace(input, @"/\*(\s|\S)*?\*/", "", RegexOptions.Multiline); /* comments like this */
-            // NuterraMod.logger.Log(input);
+            // NuterraMod.modLogger.Log(input);
             input = Regex.Replace(input, @"([,\[\{\]\}\." + Regex.Escape("\"") + @"0-9]|null)\s*//[^\n]*\n", "$1\n", RegexOptions.Multiline);    // Removes mixed JSON comments
-            // NuterraMod.logger.Log(input);
+            // NuterraMod.modLogger.Log(input);
             input = Regex.Replace(input, @",\s*([\}\]])", "\n$1", RegexOptions.Multiline);  // remove trailing ,
-            // NuterraMod.logger.Log(input);
+            // NuterraMod.modLogger.Log(input);
             return input.Replace("JSONBLOCK", "Deserializer");
         }
 
@@ -54,7 +61,7 @@ namespace CustomModules
                     try
                     {
                         legacyToSessionIds.Add(legacyID, sessionID);
-                        NuterraMod.logger.Info($"Registering block {blockName} with legacy ID {legacyID} to session ID {sessionID}");
+                        NuterraMod.modLogger.Info($"Registering block {blockName} with legacy ID {legacyID} to session ID {sessionID}");
                     }
                     catch (ArgumentException e)
                     {
@@ -66,27 +73,27 @@ namespace CustomModules
                             string modName = ModUtils.GetModFromCompoundId(blockName);
                             if (modName == "LegacyBlockLoader")
                             {
-                                NuterraMod.logger.Warn($"Legacy Block {legacyID} already has Official block {currentBlockName} assigned to it");
+                                NuterraMod.modLogger.Warn($"Legacy Block {legacyID} already has Official block {currentBlockName} assigned to it");
                             }
                             else if (currentModName == "LegacyBlockLoader")
                             {
                                 legacyToSessionIds[legacyID] = sessionID;
-                                NuterraMod.logger.Warn($"Reassigning Official block {blockName} to replace Legacy Block {legacyID}");
+                                NuterraMod.modLogger.Warn($"Reassigning Official block {blockName} to replace Legacy Block {legacyID}");
                             }
                             else
                             {
-                                NuterraMod.logger.Error($"Legacy Block {legacyID} can be assigned to official blocks {blockName} or {currentBlockName}. Resolving to {currentBlockName}");
+                                NuterraMod.modLogger.Error($"Legacy Block {legacyID} can be assigned to official blocks {blockName} or {currentBlockName}. Resolving to {currentBlockName}");
                             }
                         }
                     }
                     catch (Exception e)
                     {
-                        NuterraMod.logger.Fatal(e);
+                        NuterraMod.modLogger.Fatal(e);
                     }
                 }
                 else
                 {
-                    NuterraMod.logger.Debug($"Block {blockName} does not have an associated legacy ID");
+                    NuterraMod.modLogger.Debug($"Block {blockName} does not have an associated legacy ID");
                 }
             }
         }
@@ -108,8 +115,16 @@ namespace CustomModules
             if (!Inited)
             {
                 Inited = true;
-                logger = new Logger("NuterraSteam");
-                logger.Info("Logger is setup");
+                DirectoryInfo info = new DirectoryInfo(NuterraLogsDir);
+                foreach (FileInfo file in info.GetFiles())
+                {
+                    if (file.Extension == ".log")
+                    {
+                        file.Delete();
+                    }
+                }
+
+                modLogger = new Logger("NuterraSteam");
             }
         }
 
@@ -250,7 +265,7 @@ namespace CustomModules
             {
                 if (!BlockRotationTable.m_BlockRotationGroupIndex.Remove(lookup))
                 {
-                    NuterraMod.logger.Error("FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
+                    NuterraMod.modLogger.Error("FAILED TO REMOVE ADDED BlockRotationTable.GroupIndexLookup");
                 }
             }
             addedRotationGroups.Clear();

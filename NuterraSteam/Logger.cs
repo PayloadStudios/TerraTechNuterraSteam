@@ -60,20 +60,26 @@ namespace CustomModules.Logging
             // Read in configured logging level
             string loggingLevelStr = null;
             string[] commandLineArgs = CommandLineReader.GetCommandLineArgs();
+            bool explicitOverride = false;
             for (int i = 0; i < commandLineArgs.Length; i++)
             {
                 if (commandLineArgs[i] == "+log_level" && i < commandLineArgs.Length - 1)
                 {
                     if (loggingLevelStr == null)
                     {
-                        Console.WriteLine($"[{loggerID}] General log level of {commandLineArgs[i + 1]} read");
+                        loggingLevelStr = commandLineArgs[i + 1];
+                    }
+                }
+                else if (commandLineArgs[i] == "+log_level_NuterraBlocks" && i < commandLineArgs.Length - 1)
+                {
+                    if (!explicitOverride)
+                    {
                         loggingLevelStr = commandLineArgs[i + 1];
                     }
                 }
                 else if (commandLineArgs[i] == $"+log_level_{loggerID}" && i < commandLineArgs.Length - 1)
                 {
-                    string overrideStatement = loggingLevelStr == null ? "" : $", overriding general log level of {loggingLevelStr}";
-                    Console.WriteLine($"[{loggerID}] Custom log level of {commandLineArgs[i + 1]} read{overrideStatement}");
+                    explicitOverride = true;
                     loggingLevelStr = commandLineArgs[i + 1];
                 }
             }
@@ -85,9 +91,12 @@ namespace CustomModules.Logging
                 {
                     LogLevel loggingLevel = (LogLevel)Enum.Parse(typeof(LogLevel), loggingLevelStr, true);
                     this.minLoggingLevel = (byte)loggingLevel;
-                    Console.WriteLine($"[{loggerID}] Logging {loggingLevel} and up");
+                    if (minLoggingLevel < (byte) LogLevel.DEBUG)
+                    {
+                        Console.WriteLine($"[{loggerID}] Logging {loggingLevel} and up");
+                    }
                 }
-                else
+                else if (minLoggingLevel < (byte)LogLevel.DEBUG)
                 {
                     Console.WriteLine($"[{loggerID}] No log level found. Defaulting to {this.minLoggingLevel}");
                 }
@@ -196,6 +205,11 @@ namespace CustomModules.Logging
             {
                 Log((byte)LogLevel.WARN, message);
             }
+        }
+
+        internal void Flush()
+        {
+            return;
         }
     }
 }
