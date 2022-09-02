@@ -268,7 +268,10 @@ namespace CustomModules
 			// Then read each JSON property and act accordingly
 			foreach (JProperty jProperty in jObject.Properties())
 			{
-				string[] split = jProperty.Name.Split('|');
+				if (jProperty.Name == "setActive")
+                {
+					target.SetActive(jProperty.Value.ToObject<bool>());
+                }
 
 				bool Duplicate = jProperty.Name.StartsWith("Duplicate");
 				bool Reference = jProperty.Name.StartsWith("Reference");
@@ -425,7 +428,8 @@ namespace CustomModules
 					DeserializeIntoGameObject((JObject)jProperty.Value, childObject);
 				}
 				else
-                {
+				{
+					string[] split = jProperty.Name.Split('|');
 					NuterraMod.logger.Debug($" Deserializer adding component {split[0]} to gameObject {target}");
 
 					// Format will be "{ComponentType} {Index}" where the index specifies the child index if there are multiple targets
