@@ -127,16 +127,6 @@ namespace CustomModules
                     }
 					NuterraMod.logger.Debug("Details: " + NuterraDeserializer.DeserializingBlock);
 
-					// Ignore corporation. Custom corps no longer have a fixed ID, so we should use the official tool to set corp IDs.
-					//def.m_Corporation = CustomParser.LenientTryParseInt(jData, "Corporation", def.m_Corporation);
-					def.m_Category = CustomParser.LenientTryParseEnum<BlockCategories>(jData, "Category", def.m_Category);
-					def.m_Category = def.m_Category != BlockCategories.Null ? def.m_Category : BlockCategories.Standard;
-					block.m_BlockCategory = def.m_Category;
-					def.m_Rarity = CustomParser.LenientTryParseEnum<BlockRarity>(jData, "Rarity", def.m_Rarity);
-					block.m_BlockRarity = def.m_Rarity;
-					def.m_Grade = CustomParser.LenientTryParseInt(jData, "Grade", def.m_Grade);
-					NuterraMod.logger.Debug($"Grade: {def.m_Grade}");
-
 					// Recipe
 					RecipeTable.Recipe recipe = ParseRecipe(jData, def.m_Corporation, blockSessionID, out int RecipePrice);
 					if (recipe != null)
@@ -181,6 +171,7 @@ namespace CustomModules
 						GameObject newObject = GameObject.Instantiate(originalGameObject);
 						// Assign this back to block for further processing
 						block = GetOrAddComponent<TankBlock>(newObject.transform);
+
 						//TankBlock original = originalGameObject.GetComponent<TankBlock>();
 						//TankBlock copy = UnityEngine.Object.Instantiate(original);
 						TankBlockTemplate fakeTemplate = newObject.AddComponent<TankBlockTemplate>();
@@ -264,6 +255,20 @@ namespace CustomModules
 						NuterraMod.logger.Error($"Failed to find GamePrefabReference {referenceBlock}");
 					}
 					#endregion
+
+
+					// Ignore corporation. Custom corps no longer have a fixed ID, so we should use the official tool to set corp IDs.
+					//def.m_Corporation = CustomParser.LenientTryParseInt(jData, "Corporation", def.m_Corporation);
+					def.m_Category = CustomParser.LenientTryParseEnum<BlockCategories>(jData, "Category", def.m_Category);
+					def.m_Category = def.m_Category != BlockCategories.Null ? def.m_Category : BlockCategories.Standard;
+					block.m_BlockCategory = def.m_Category;
+					NuterraMod.logger.Debug($"Category: {def.m_Category}");
+					def.m_Rarity = CustomParser.LenientTryParseEnum<BlockRarity>(jData, "Rarity", def.m_Rarity);
+					block.m_BlockRarity = def.m_Rarity;
+					NuterraMod.logger.Debug($"Rarity: {def.m_Rarity}");
+					def.m_Grade = CustomParser.LenientTryParseInt(jData, "Grade", def.m_Grade);
+					NuterraMod.logger.Debug($"Grade: {def.m_Grade}");
+
 					// ------------------------------------------------------
 
 					// ------------------------------------------------------
