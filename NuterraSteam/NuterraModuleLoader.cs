@@ -252,7 +252,7 @@ namespace CustomModules
 					}
 					else
 					{
-						NuterraMod.logger.Error($"Failed to find GamePrefabReference {referenceBlock}");
+						NuterraMod.logger.Warn($"Failed to find GamePrefabReference {referenceBlock}");
 					}
 					#endregion
 
@@ -647,7 +647,7 @@ namespace CustomModules
 			}
 			else
 			{
-				NuterraMod.logger.Error("Unable to inject Recipe");
+				NuterraMod.logger.Warn("Unable to inject Recipe");
 			}
 			return true;
         }

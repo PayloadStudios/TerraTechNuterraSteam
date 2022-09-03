@@ -116,11 +116,14 @@ namespace CustomModules
             {
                 Inited = true;
                 DirectoryInfo info = new DirectoryInfo(NuterraLogsDir);
-                foreach (FileInfo file in info.GetFiles())
+                if (info.Exists)
                 {
-                    if (file.Extension == ".log")
+                    foreach (FileInfo file in info.GetFiles())
                     {
-                        file.Delete();
+                        if (file.Extension == ".log")
+                        {
+                            file.Delete();
+                        }
                     }
                 }
 
