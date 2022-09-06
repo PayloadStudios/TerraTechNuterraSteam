@@ -26,27 +26,28 @@ namespace CustomModules
 				RecipeTable.Recipe recipe = new RecipeTable.Recipe();
 				Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> dictionary = new Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec>();
 
-				if (jRecipe is JValue rString)
-				{
-					string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-					NuterraMod.logger.Debug($"Adjusted Recipe Str: {recipeString}");
-					foreach (string item in recipeString)
-					{
-						RecipePrice += AppendToRecipe(dictionary, item, 1);
-					}
-				}
-				else if (jRecipe is JObject rObject)
+				
+				if (jRecipe.Type == JTokenType.Object && jRecipe is JObject rObject)
 				{
 					foreach (var item in rObject)
 					{
 						RecipePrice += AppendToRecipe(dictionary, item.Key, item.Value.ToObject<int>());
 					}
 				}
-				else if (jRecipe is JArray rArray)
+				else if (jRecipe.Type == JTokenType.Array && jRecipe is JArray rArray)
 				{
 					foreach (var item in rArray)
 					{
 						RecipePrice += AppendToRecipe(dictionary, item.ToString(), 1);
+					}
+				}
+				else if (jRecipe is JValue rString)
+				{
+					string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+					NuterraMod.logger.Debug($"Adjusted Recipe Str: {recipeString}");
+					foreach (string item in recipeString)
+					{
+						RecipePrice += AppendToRecipe(dictionary, item, 1);
 					}
 				}
 
@@ -1028,7 +1029,7 @@ namespace CustomModules
 			{
 				if (!RecipeBuilder.ContainsKey(chunk))
 				{
-					RecipeBuilder.Add(chunk, new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Chunk, (int)chunk), 1));
+					RecipeBuilder.Add(chunk, new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Chunk, (int)chunk), Count));
 				}
 				else
 				{
