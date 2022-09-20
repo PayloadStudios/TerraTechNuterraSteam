@@ -108,8 +108,16 @@ namespace CustomModules.Logging
                 Console.WriteLine($"[{loggerID}] {loggingLevelStr} is unrecognized logging level. Defaulting to {this.minLoggingLevel}");
             }
 
-            // Perform any injected setup
-            this.Setup();
+            try
+            {
+                // Perform any injected setup
+                this.Setup();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error settingup loger");
+                Console.WriteLine(ex.ToString());
+            }
         }
 
         public void Setup() { }

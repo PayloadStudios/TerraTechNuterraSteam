@@ -100,8 +100,8 @@ namespace CustomModules.LegacyModule
                     return;
 
                 case EmissionMode.ActiveWhenAnchored:
-                    block.AttachEvent.Subscribe(HookAnchorEmission);
-                    block.DetachEvent.Subscribe(UnhookAnchorEmission);
+                    block.AttachedEvent.Subscribe(HookAnchorEmission);
+                    block.DetachedEvent.Subscribe(UnhookAnchorEmission);
                     return;
 
                 default: return;

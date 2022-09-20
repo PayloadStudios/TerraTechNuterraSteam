@@ -298,151 +298,6 @@ namespace CustomModules
 
 					// ------------------------------------------------------
 					#region Tweaks
-					NuterraMod.logger.Debug($"Handling block cells");
-					// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
-					bool usedBlockExtents = false;
-					bool cellsProcessed = false;
-					IntVector3 size = new IntVector3();
-
-					// Use the very first cell processor that gives you a non-empty result
-					// CellMap / CellsMap
-					if (CustomParser.TryGetTokenMultipleKeys(jData, out JToken jCellMap, "CellMap", "CellsMap"))
-					{
-						string[][] ZYXCells = jCellMap.ToObject<string[][]>();
-						List<IntVector3> cells = new List<IntVector3>();
-						for (int z = 0; z < ZYXCells.Length; z++)
-						{
-							string[] YXslice = ZYXCells[z];
-							if (YXslice == null)
-								continue;
-
-							for (int y = 0, ry = YXslice.Length - 1; ry >= 0; y++, ry--)
-							{
-								string Xline = YXslice[ry];
-								if (Xline == null)
-									continue;
-
-								for (int x = 0; x < Xline.Length; x++)
-								{
-									char cell = Xline[x];
-									if (cell != ' ')
-										cells.Add(new IntVector3(x, y, z));
-								}
-							}
-						}
-						if (cells.Count != 0 || (block.filledCells == null || block.filledCells.Length == 0))
-						{
-							block.filledCells = cells.ToArray();
-							usedBlockExtents = false;
-							cellsProcessed = true;
-						}
-					}
-					// old cells
-					if (!cellsProcessed && jData.TryGetValue("Cells", out JToken jCells) && jCells.Type == JTokenType.Array)
-					{
-						List<IntVector3> filledCells = new List<IntVector3>();
-						foreach (JObject jCell in (JArray)jCells)
-						{
-							filledCells.Add(CustomParser.GetVector3Int(jCell));
-						}
-						if (filledCells.Count != 0 || (block.filledCells == null || block.filledCells.Length == 0))
-						{
-							block.filledCells = filledCells.ToArray();
-							usedBlockExtents = false;
-							cellsProcessed = true;
-						}
-					}
-					// BlockExtents
-					if (!cellsProcessed && jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
-					{
-						List<IntVector3> filledCells = new List<IntVector3>();
-						size = CustomParser.GetVector3Int(jExtents);
-
-						for (int i = 0; i < size.x; i++)
-						{
-							for (int j = 0; j < size.y; j++)
-							{
-								for (int k = 0; k < size.z; k++)
-								{
-									filledCells.Add(new IntVector3(i, j, k));
-								}
-							}
-						}
-						block.filledCells = filledCells.ToArray();
-						usedBlockExtents = true;
-						NuterraMod.logger.Debug($"Overwrote BlockExtents");
-					}
-
-					// Handle failure to get cells
-					if (block.filledCells == null || block.filledCells.Length == 0)
-                    {
-						block.filledCells = new IntVector3[] { new IntVector3 (0, 0, 0) };
-                    }
-
-					NuterraMod.logger.Debug($"Handling block APs");
-					// APs
-					bool manualAPs = false;
-					if (jData.TryGetValue("APs", out JToken jAPList) && jAPList.Type == JTokenType.Array)
-					{
-						List<Vector3> aps = new List<Vector3>();
-						foreach (JToken token in (JArray)jAPList)
-						{
-							aps.Add(CustomParser.GetVector3(token));
-						}
-						block.attachPoints = aps.ToArray();
-						manualAPs = block.attachPoints.Length > 0;
-					}
-
-					// TODO: APsOnlyAtBottom / MakeAPsAtBottom
-					if (usedBlockExtents && !manualAPs)
-                    {
-						List<Vector3> aps = new List<Vector3>();
-						bool doAllPoints = true;
-						if (jData.TryGetValue("APsOnlyAtBottom", out JToken APMode) && APMode.Type == JTokenType.Boolean)
-						{
-							doAllPoints = !APMode.ToObject<bool>();
-						}
-
-						for (int x = 0; x < size.x; x++)
-						{
-							for (int y = 0; y < size.y; y++)
-							{
-								for (int z = 0; z < size.z; z++)
-								{
-									if (y == 0)
-									{
-										aps.Add(new Vector3(x, -0.5f, z));
-									}
-									if (doAllPoints)
-									{
-										if (x == 0)
-										{
-											aps.Add(new Vector3(-0.5f, y, z));
-										}
-										if (x == size.x - 1)
-										{
-											aps.Add(new Vector3(x + 0.5f, y, z));
-										}
-										if (y == size.y - 1)
-										{
-											aps.Add(new Vector3(x, y + 0.5f, z));
-										}
-										if (z == 0)
-										{
-											aps.Add(new Vector3(x, y, -0.5f));
-										}
-										if (z == size.z - 1)
-										{
-											aps.Add(new Vector3(x, y, z + 0.5f));
-										}
-									}
-								}
-							}
-						}
-
-						block.attachPoints = aps.ToArray();
-					}
-
 					NuterraMod.logger.Debug($"Handling block stats");
 
 					// Some basic block stats
@@ -580,17 +435,183 @@ namespace CustomModules
 					#endregion
 					// ------------------------------------------------------
 
-					NuterraMod.logger.Debug($"Handling SubObjects");
-					// Start recursively adding objects with the root. 
-					// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
-					RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
+					bool blockSuccess = true;
+					try
+					{
+						NuterraMod.logger.Debug($"Handling SubObjects");
+						// Start recursively adding objects with the root. 
+						// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
+						RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
+					}
+					catch (Exception e)
+					{
+						blockSuccess = false;
+						NuterraMod.logger.Error("Block creation FAILED");
+						NuterraMod.logger.Error($"Caught exception:\n{e.ToString()}");
+					}
+
+                    #region cells
+                    NuterraMod.logger.Debug($"Handling block cells");
+					// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
+					bool usedBlockExtents = false;
+					bool cellsProcessed = false;
+					IntVector3 size = new IntVector3();
+
+					// Use the very first cell processor that gives you a non-empty result
+					// CellMap / CellsMap
+					if (CustomParser.TryGetTokenMultipleKeys(jData, out JToken jCellMap, "CellMap", "CellsMap"))
+					{
+						string[][] ZYXCells = jCellMap.ToObject<string[][]>();
+						List<IntVector3> cells = new List<IntVector3>();
+						for (int z = 0; z < ZYXCells.Length; z++)
+						{
+							string[] YXslice = ZYXCells[z];
+							if (YXslice == null)
+								continue;
+
+							for (int y = 0, ry = YXslice.Length - 1; ry >= 0; y++, ry--)
+							{
+								string Xline = YXslice[ry];
+								if (Xline == null)
+									continue;
+
+								for (int x = 0; x < Xline.Length; x++)
+								{
+									char cell = Xline[x];
+									if (cell != ' ')
+										cells.Add(new IntVector3(x, y, z));
+								}
+							}
+						}
+						if (cells.Count != 0 || (block.filledCells == null || block.filledCells.Length == 0))
+						{
+							block.filledCells = cells.ToArray();
+							usedBlockExtents = false;
+							cellsProcessed = true;
+							NuterraMod.logger.Debug($"Using CellMap");
+						}
+						else
+						{
+							NuterraMod.logger.Warn($"CellMap FAILED");
+						}
+					}
+					// old cells
+					if (!cellsProcessed && jData.TryGetValue("Cells", out JToken jCells) && jCells.Type == JTokenType.Array)
+					{
+						List<IntVector3> filledCells = new List<IntVector3>();
+						foreach (JObject jCell in (JArray)jCells)
+						{
+							filledCells.Add(CustomParser.GetVector3Int(jCell));
+						}
+						if (filledCells.Count != 0 || (block.filledCells == null || block.filledCells.Length == 0))
+						{
+							block.filledCells = filledCells.ToArray();
+							usedBlockExtents = false;
+							cellsProcessed = true;
+						}
+						NuterraMod.logger.Debug($"Using old cells");
+					}
+					// BlockExtents
+					if (!cellsProcessed && jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
+					{
+						List<IntVector3> filledCells = new List<IntVector3>();
+						size = CustomParser.GetVector3Int(jExtents);
+
+						for (int i = 0; i < size.x; i++)
+						{
+							for (int j = 0; j < size.y; j++)
+							{
+								for (int k = 0; k < size.z; k++)
+								{
+									filledCells.Add(new IntVector3(i, j, k));
+								}
+							}
+						}
+						block.filledCells = filledCells.ToArray();
+						usedBlockExtents = true;
+						NuterraMod.logger.Debug($"Overwrote BlockExtents");
+					}
+
+					// Handle failure to get cells
+					if (block.filledCells == null || block.filledCells.Length == 0)
+					{
+						NuterraMod.logger.Warn($"FAILED to set cells");
+						block.filledCells = new IntVector3[] { new IntVector3(0, 0, 0) };
+					}
+
+					NuterraMod.logger.Debug($"Handling block APs");
+					// APs
+					bool manualAPs = false;
+					if (jData.TryGetValue("APs", out JToken jAPList) && jAPList.Type == JTokenType.Array)
+					{
+						List<Vector3> aps = new List<Vector3>();
+						foreach (JToken token in (JArray)jAPList)
+						{
+							aps.Add(CustomParser.GetVector3(token));
+						}
+						block.attachPoints = aps.ToArray();
+						manualAPs = block.attachPoints.Length > 0;
+						NuterraMod.logger.Debug($"APS set");
+					}
+
+					// TODO: APsOnlyAtBottom / MakeAPsAtBottom
+					if (usedBlockExtents && !manualAPs)
+					{
+						List<Vector3> aps = new List<Vector3>();
+						bool doAllPoints = true;
+						if (jData.TryGetValue("APsOnlyAtBottom", out JToken APMode) && APMode.Type == JTokenType.Boolean)
+						{
+							doAllPoints = !APMode.ToObject<bool>();
+						}
+
+						for (int x = 0; x < size.x; x++)
+						{
+							for (int y = 0; y < size.y; y++)
+							{
+								for (int z = 0; z < size.z; z++)
+								{
+									if (y == 0)
+									{
+										aps.Add(new Vector3(x, -0.5f, z));
+									}
+									if (doAllPoints)
+									{
+										if (x == 0)
+										{
+											aps.Add(new Vector3(-0.5f, y, z));
+										}
+										if (x == size.x - 1)
+										{
+											aps.Add(new Vector3(x + 0.5f, y, z));
+										}
+										if (y == size.y - 1)
+										{
+											aps.Add(new Vector3(x, y + 0.5f, z));
+										}
+										if (z == 0)
+										{
+											aps.Add(new Vector3(x, y, -0.5f));
+										}
+										if (z == size.z - 1)
+										{
+											aps.Add(new Vector3(x, y, z + 0.5f));
+										}
+									}
+								}
+							}
+						}
+
+						block.attachPoints = aps.ToArray();
+						NuterraMod.logger.Debug($"Auto-Set APs");
+					}
+					#endregion
 
 					// Forcibly reset ColliderSwapper so it gets recalculated correctly every time.
 					ColliderSwapper swapper = block.transform.GetComponentInChildren<ColliderSwapper>();
 					if (swapper != null)
-                    {
+					{
 						swapper.m_Colliders = null;
-                    }
+					}
 
 					// Weird export fix up for meshes
 					// Flip everything in x
@@ -612,9 +633,12 @@ namespace CustomModules
 						}
 					}
 
-					NuterraMod.logger.Info("Block creation DONE");
+					if (blockSuccess)
+					{
+						NuterraMod.logger.Info("Block creation DONE");
+					}
 					NuterraMod.logger.Flush();
-					return true;
+					return blockSuccess;
 				}
 				NuterraMod.logger.Error("Block creation FAILED");
 				NuterraMod.logger.Flush();
