@@ -46,6 +46,29 @@ namespace CustomModules.Logging
 
         internal string logPath = "";
 
+        int prefix = 0;
+
+        public void IncreasePrefix(int indent = 1)
+        {
+            this.prefix += indent;
+        }
+        public void DecreasePrefix(int indent = 1)
+        {
+            this.prefix -= indent;
+        }
+        public void ResetPrefix()
+        {
+            this.prefix = 0;
+        }
+
+        private string GetPrefixedString(string message)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append(' ', this.prefix);
+            sb.Append(message);
+            return sb.ToString();
+        }
+
         internal Logger(string loggerID, TargetConfig config = default, byte defaultLogLevel = (byte)LogLevel.ERROR)
         {
             this.loggerID = loggerID;
@@ -141,7 +164,7 @@ namespace CustomModules.Logging
         {
             if (minLoggingLevel <= (byte)LogLevel.TRACE)
             {
-                Log((byte)LogLevel.TRACE, message);
+                Log((byte)LogLevel.TRACE, this.GetPrefixedString(message));
             }
         }
 
@@ -149,7 +172,7 @@ namespace CustomModules.Logging
         {
             if (minLoggingLevel <= (byte)LogLevel.DEBUG)
             {
-                Log((byte)LogLevel.DEBUG, message);
+                Log((byte)LogLevel.DEBUG, this.GetPrefixedString(message));
             }
         }
 
@@ -157,7 +180,7 @@ namespace CustomModules.Logging
         {
             if (minLoggingLevel <= (byte)LogLevel.INFO)
             {
-                Log((byte)LogLevel.INFO, message);
+                Log((byte)LogLevel.INFO, this.GetPrefixedString(message));
             }
         }
 
@@ -165,7 +188,7 @@ namespace CustomModules.Logging
         {
             if (minLoggingLevel <= (byte)LogLevel.FATAL)
             {
-                Log((byte)LogLevel.FATAL, message);
+                Log((byte)LogLevel.FATAL, this.GetPrefixedString(message));
             }
         }
 
@@ -175,7 +198,7 @@ namespace CustomModules.Logging
             {
                 if (message != null)
                 {
-                    LogException((byte)LogLevel.FATAL, exception, message);
+                    LogException((byte)LogLevel.FATAL, exception, this.GetPrefixedString(message));
                 }
                 else
                 {
@@ -188,7 +211,7 @@ namespace CustomModules.Logging
         {
             if (minLoggingLevel <= (byte)LogLevel.ERROR)
             {
-                Log((byte)LogLevel.ERROR, message);
+                Log((byte)LogLevel.ERROR, this.GetPrefixedString(message));
             }
         }
 
@@ -198,7 +221,7 @@ namespace CustomModules.Logging
             {
                 if (message != null)
                 {
-                    LogException((byte) LogLevel.ERROR, exception, message);
+                    LogException((byte) LogLevel.ERROR, exception, this.GetPrefixedString(message));
                 }
                 else
                 {
@@ -211,7 +234,7 @@ namespace CustomModules.Logging
         {
             if (minLoggingLevel <= (byte)LogLevel.WARN)
             {
-                Log((byte)LogLevel.WARN, message);
+                Log((byte)LogLevel.WARN, this.GetPrefixedString(message));
             }
         }
 

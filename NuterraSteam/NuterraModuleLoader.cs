@@ -6,6 +6,7 @@ using System.Reflection;
 using UnityEngine;
 using CustomModules.Logging;
 using CustomModules.LegacyModule;
+using static LocalisationEnums;
 
 namespace CustomModules
 {
@@ -21,7 +22,7 @@ namespace CustomModules
 			RecipePrice = 0;
 			if (jData.TryGetValue("Recipe", out JToken jRecipe))
 			{
-				NuterraMod.logger.Debug($"Recipe detected: {jRecipe.ToString()}");
+				NuterraMod.logger.Debug($"📝 Recipe: {jRecipe.ToString()}");
 
 				RecipeTable.Recipe recipe = new RecipeTable.Recipe();
 				Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec> dictionary = new Dictionary<ChunkTypes, RecipeTable.Recipe.ItemSpec>();
@@ -44,7 +45,7 @@ namespace CustomModules
 				else if (jRecipe is JValue rString)
 				{
 					string[] recipeString = rString.ToObject<string>().Replace(" ", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-					NuterraMod.logger.Debug($"Adjusted Recipe Str: {recipeString}");
+					NuterraMod.logger.Debug($"📝 Recipe Str: {recipeString}");
 					foreach (string item in recipeString)
 					{
 						RecipePrice += AppendToRecipe(dictionary, item, 1);
@@ -54,12 +55,11 @@ namespace CustomModules
 				recipe.m_InputItems = new RecipeTable.Recipe.ItemSpec[dictionary.Count];
 				dictionary.Values.CopyTo(recipe.m_InputItems, 0);
 				recipe.m_OutputItems[0] = new RecipeTable.Recipe.ItemSpec(new ItemTypeInfo(ObjectTypes.Block, blockID), 1);
-
 				return recipe;
 			}
 			else
 			{
-				NuterraMod.logger.Warn($"No Recipe Found");
+				NuterraMod.logger.Warn($"🚨 No Recipe Found");
 			}
 			return null;
 		}
@@ -80,16 +80,16 @@ namespace CustomModules
 				NuterraMod.logger = logger;
 			}
 
-			NuterraMod.logger.Info($"Loading CustomBlock module for {def.name} ({blockSessionID})");
+			NuterraMod.logger.Info($"🛠 Processing '{def.name}' ({blockSessionID})");
 			try
 			{
-				NuterraMod.logger.Trace(def.m_Json.ToString());
+				NuterraMod.logger.Debug(def.m_Json.ToString());
 				ModContents mod = container != null ? container.Contents : null;
 
 				if (jToken.Type == JTokenType.Object)
 				{
 					JObject jData = (JObject)jToken;
-					NuterraMod.logger.Debug("CreationStart");
+					NuterraMod.logger.Debug("🟢 CreationStart");
 					// Get the mod contents so we can search for additional assets
 
 					// ------------------------------------------------------
@@ -100,9 +100,10 @@ namespace CustomModules
 					if (mod == null)
 					{
 						NuterraMod.logger.Error($"{def.m_BlockDisplayName} | Could not find mod that this unoffical block is part of");
-						NuterraMod.logger.Error("Block creation FAILED");
+						NuterraMod.logger.Error("🛑 Block creation FAILED");
 						NuterraMod.logger.Flush();
-						return false;
+                        NuterraMod.logger.ResetPrefix();
+                        return false;
 					}
 
 					// We get an ID for backwards compatibility
@@ -111,7 +112,6 @@ namespace CustomModules
 					NuterraDeserializer.DeserializingMod = mod;
 					if (legacyID != 0)
 					{
-						NuterraMod.logger.Debug(string.Format(NuterraDeserializer.DeserializingBlock + " Assigning block {0} with legacy ID of {1} to managed ID {2}", def.m_BlockDisplayName, legacyID, blockSessionID));
 						try
 						{
 							NuterraMod.blockIDToLegacyIDs.Add(ModUtils.CreateCompoundId(container.ModID, def.name), legacyID);
@@ -119,14 +119,14 @@ namespace CustomModules
 						}
 						catch (ArgumentException exception)
                         {
-							NuterraMod.logger.Error($"Failed to register block {def.name} to name-ID map:\n{exception.ToString()}");
+							NuterraMod.logger.Error($"❌ Failed to register block '{def.name}' to name-ID map:\n{exception.ToString()}");
                         }
 					}
 					else
                     {
 						NuterraMod.nonLegacyBlocks.Add(blockSessionID);
                     }
-					NuterraMod.logger.Debug("Details: " + NuterraDeserializer.DeserializingBlock);
+					NuterraMod.logger.Debug("🗃 Details: " + NuterraDeserializer.DeserializingBlock);
 
 					// Recipe
 					RecipeTable.Recipe recipe = ParseRecipe(jData, def.m_Corporation, blockSessionID, out int RecipePrice);
@@ -136,12 +136,12 @@ namespace CustomModules
 					}
 					int overridePrice = CustomParser.LenientTryParseInt(jData, "Price", 0);
 					if (overridePrice > 0) {
-						NuterraMod.logger.Debug($"Read override price of {overridePrice}");
+						NuterraMod.logger.Debug($"💲 Read override price of {overridePrice}");
 						def.m_Price = overridePrice;
 					}
 					else
                     {
-						NuterraMod.logger.Warn($"No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
+						NuterraMod.logger.Warn($"🚨 No price specified. Falling back on calculated recipe price * 3: {def.m_Price}");
 					}
 					def.m_MaxHealth = CustomParser.LenientTryParseInt(jData, "HP", def.m_MaxHealth);
 
@@ -181,7 +181,7 @@ namespace CustomModules
 						// for now that you are making 100% official or 100% unofficial JSONs
 						def.m_PhysicalPrefab = fakeTemplate;
 
-						NuterraMod.logger.Debug($"Found game prefab reference as {newObject}");
+						NuterraMod.logger.Debug($"🧊 Found game prefab reference as {newObject}");
 
 						// TTQMM REF: DirectoryBlockLoader.CreateJSONBlock, the handling of these flags is a bit weird
 						if (keepRenderers)
@@ -253,7 +253,7 @@ namespace CustomModules
 					}
 					else
 					{
-						NuterraMod.logger.Warn($"Failed to find GamePrefabReference {referenceBlock}");
+						NuterraMod.logger.Warn($"❌ Failed to find GamePrefabReference {referenceBlock}");
 					}
 					#endregion
 
@@ -263,12 +263,12 @@ namespace CustomModules
 					def.m_Category = CustomParser.LenientTryParseEnum<BlockCategories>(jData, "Category", def.m_Category);
 					def.m_Category = def.m_Category != BlockCategories.Null ? def.m_Category : BlockCategories.Standard;
 					block.m_BlockCategory = def.m_Category;
-					NuterraMod.logger.Debug($"Category: {def.m_Category}");
+					NuterraMod.logger.Debug($"⚙️ Category: {def.m_Category}");
 					def.m_Rarity = CustomParser.LenientTryParseEnum<BlockRarity>(jData, "Rarity", def.m_Rarity);
 					block.m_BlockRarity = def.m_Rarity;
-					NuterraMod.logger.Debug($"Rarity: {def.m_Rarity}");
+					NuterraMod.logger.Debug($"💎 Rarity: {def.m_Rarity}");
 					def.m_Grade = CustomParser.LenientTryParseInt(jData, "Grade", def.m_Grade);
-					NuterraMod.logger.Debug($"Grade: {def.m_Grade}");
+					NuterraMod.logger.Debug($"🔢 Grade: {def.m_Grade}");
 
 					// ------------------------------------------------------
 
@@ -290,7 +290,7 @@ namespace CustomModules
 						if (refBlock != null)
 						{
 							moduleDamage.deathExplosion = refBlock.GetComponent<ModuleDamage>().deathExplosion;
-							NuterraMod.logger.Debug($"Swapped death explosion for {refBlock}");
+							NuterraMod.logger.Debug($"💥 Swapped death explosion for {refBlock}");
 						}
 					}
 					#endregion
@@ -298,7 +298,7 @@ namespace CustomModules
 
 					// ------------------------------------------------------
 					#region Tweaks
-					NuterraMod.logger.Debug($"Handling block stats");
+					NuterraMod.logger.Debug($"📊 Handling block stats");
 
 					// Some basic block stats
 					damageable.DamageableType = CustomParser.LenientTryParseEnum<ManDamage.DamageableType>(jData, "DamageableType", damageable.DamageableType);
@@ -369,7 +369,9 @@ namespace CustomModules
 					// IconName override
 					if (CustomParser.TryGetTokenMultipleKeys(jData, out JToken jIconName, new string[] { "IconName", "Icon" }) && jIconName.Type == JTokenType.String)
 					{
-						UnityEngine.Object obj = mod.FindAsset(jIconName.ToString());
+						string iconName = jIconName.ToString();
+                        NuterraMod.logger.Info($"📷 Locating icon {iconName}");
+						UnityEngine.Object obj = mod.FindAsset(iconName);
 						if (obj != null)
 						{
 							if (obj is Sprite sprite)
@@ -378,7 +380,7 @@ namespace CustomModules
 								def.m_Icon = texture;
 							else
 							{
-								NuterraMod.logger.Warn($"Found unknown object type {obj.GetType()} for icon override for {block.name}");
+								NuterraMod.logger.Warn($"🚨 Found unknown object type {obj.GetType()} for icon override for '{block.name}'");
 							}
 						}
 					}
@@ -388,6 +390,7 @@ namespace CustomModules
 					int PairedBlock = -1;
 					if (jData.TryGetValue("PairedBlock", out JToken jPairedBlock) && jPairedBlock.Type == JTokenType.Integer)
 					{
+						NuterraMod.logger.Info("🔗 Handling block linking");
 						PairedBlock = jPairedBlock.ToObject<int>();
 						if (PairedBlock >= 0)
 						{
@@ -438,7 +441,7 @@ namespace CustomModules
 					bool blockSuccess = true;
 					try
 					{
-						NuterraMod.logger.Debug($"Handling SubObjects");
+						NuterraMod.logger.Debug($"⚬ Handling SubObjects");
 						// Start recursively adding objects with the root. 
 						// Calling it this way and treating the root as a sub-object prevents a lot of code duplication
 						RecursivelyAddSubObject(block, mod, block.transform, jData, TTReferences.kMissingTextureTankBlock, false);
@@ -446,12 +449,12 @@ namespace CustomModules
 					catch (Exception e)
 					{
 						blockSuccess = false;
-						NuterraMod.logger.Error("Block creation FAILED");
-						NuterraMod.logger.Error($"Caught exception:\n{e.ToString()}");
+						NuterraMod.logger.Error("❌ Block creation FAILED");
+						NuterraMod.logger.Error(e);
 					}
 
                     #region cells
-                    NuterraMod.logger.Debug($"Handling block cells");
+                    NuterraMod.logger.Debug($"◻ Handling block cells");
 					// BlockExtents is a way of quickly doing a cuboid Filled Cell setup
 					bool usedBlockExtents = false;
 					bool cellsProcessed = false;
@@ -488,11 +491,11 @@ namespace CustomModules
 							block.filledCells = cells.ToArray();
 							usedBlockExtents = false;
 							cellsProcessed = true;
-							NuterraMod.logger.Debug($"Using CellMap");
+							NuterraMod.logger.Debug($"◻ Using CellMap");
 						}
 						else
 						{
-							NuterraMod.logger.Warn($"CellMap FAILED");
+							NuterraMod.logger.Warn($"❌ CellMap FAILED");
 						}
 					}
 					// old cells
@@ -509,7 +512,7 @@ namespace CustomModules
 							usedBlockExtents = false;
 							cellsProcessed = true;
 						}
-						NuterraMod.logger.Debug($"Using old cells");
+						NuterraMod.logger.Debug($"◻ Using old cells");
 					}
 					// BlockExtents
 					if (!cellsProcessed && jData.TryGetValue("BlockExtents", out JToken jExtents) && jExtents.Type == JTokenType.Object)
@@ -529,17 +532,17 @@ namespace CustomModules
 						}
 						block.filledCells = filledCells.ToArray();
 						usedBlockExtents = true;
-						NuterraMod.logger.Debug($"Overwrote BlockExtents");
+						NuterraMod.logger.Debug($"◻ Overwrote BlockExtents");
 					}
 
 					// Handle failure to get cells
 					if (block.filledCells == null || block.filledCells.Length == 0)
 					{
-						NuterraMod.logger.Warn($"FAILED to set cells");
+						NuterraMod.logger.Warn($"🚨 FAILED to set cells");
 						block.filledCells = new IntVector3[] { new IntVector3(0, 0, 0) };
 					}
 
-					NuterraMod.logger.Debug($"Handling block APs");
+					NuterraMod.logger.Debug($"▶ Handling block APs");
 					// APs
 					bool manualAPs = false;
 					if (jData.TryGetValue("APs", out JToken jAPList) && jAPList.Type == JTokenType.Array)
@@ -551,7 +554,7 @@ namespace CustomModules
 						}
 						block.attachPoints = aps.ToArray();
 						manualAPs = block.attachPoints.Length > 0;
-						NuterraMod.logger.Debug($"APS set");
+						NuterraMod.logger.Debug($"▶ Manual APS set");
 					}
 
 					// TODO: APsOnlyAtBottom / MakeAPsAtBottom
@@ -602,7 +605,7 @@ namespace CustomModules
 						}
 
 						block.attachPoints = aps.ToArray();
-						NuterraMod.logger.Debug($"Auto-Set APs");
+						NuterraMod.logger.Debug($"▶ Auto-Set APs");
 					}
 					#endregion
 
@@ -635,20 +638,23 @@ namespace CustomModules
 
 					if (blockSuccess)
 					{
-						NuterraMod.logger.Info("Block creation DONE");
+						NuterraMod.logger.Info("🏁 Block creation DONE");
 					}
 					NuterraMod.logger.Flush();
-					return blockSuccess;
+                    NuterraMod.logger.ResetPrefix();
+                    return blockSuccess;
 				}
-				NuterraMod.logger.Error("Block creation FAILED");
+				NuterraMod.logger.Error("🛑 Block creation FAILED");
 				NuterraMod.logger.Flush();
-				return false;
+                NuterraMod.logger.ResetPrefix();
+                return false;
 			}
 			catch(Exception e)
 			{
-				NuterraMod.logger.Error($"Caught exception:\n{e.ToString()}");
-				NuterraMod.logger.Error("Block creation FAILED");
-				NuterraMod.logger.Flush();
+				NuterraMod.logger.Error("🛑 Block creation FAILED");
+                NuterraMod.logger.Error(e);
+                NuterraMod.logger.Flush();
+				NuterraMod.logger.ResetPrefix();
 				return false;
 			}
 		}
@@ -666,20 +672,20 @@ namespace CustomModules
 				}
 				catch (Exception e)
 				{
-					NuterraMod.logger.Error("Failed to inject custom recipe:");
+					NuterraMod.logger.Error("❌ Failed to inject custom recipe:");
 					NuterraMod.logger.Error(e);
 				}
 			}
 			else
 			{
-				NuterraMod.logger.Warn("Unable to inject Recipe");
+				NuterraMod.logger.Warn("🚨 Unable to inject Recipe");
 			}
 			return true;
         }
 
         private void RecursivelyAddSubObject(TankBlock block, ModContents mod, Transform targetTransform, JObject jData, Material defaultMaterial, bool isNewSubObject)
 		{
-			NuterraMod.logger.Debug($"Called RecursivelyAddSubObject");
+			NuterraMod.logger.Debug($"👉 Called RecursivelyAddSubObject");
 
 			// Material - Used in the next step
 			Material mat = null;
@@ -760,18 +766,8 @@ namespace CustomModules
 			if (CustomParser.TryGetStringMultipleKeysAllowNull(jData, out string meshName, "MeshName", "ModelName"))
 			{
 				if (meshName != null)
-				{
-					foreach (UnityEngine.Object obj in mod.FindAllAssets(meshName))
-					{
-						if (obj != null)
-						{
-							if (obj is Mesh)
-								mesh = (Mesh)obj;
-							else if (obj is GameObject)
-								mesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
-						}
-					}
-					Debug.Assert(mesh != null, $"Failed to find mesh with name {meshName}");
+                {
+					mesh = GetMeshFromName(mod, meshName);
 				}
 				else
                 {
@@ -780,18 +776,10 @@ namespace CustomModules
 			}
 			if (CustomParser.TryGetStringMultipleKeys(jData, out string meshColliderName, "ColliderMeshName", "MeshColliderName"))
 			{
-				foreach (UnityEngine.Object obj in mod.FindAllAssets(meshColliderName))
-				{
-					if (obj is Mesh)
-						colliderMesh = (Mesh)obj;
-					else if (obj is GameObject)
-						colliderMesh = ((GameObject)obj).GetComponentInChildren<MeshFilter>().sharedMesh;
-				}
-				Debug.Assert(colliderMesh != null, $"Failed to find collider mesh with name {meshColliderName}");
+				colliderMesh = GetMeshFromName(mod, meshColliderName);
 			}
 
 			// Remove the existing mesh if we set it to null
-			/*
 			if (RemoveExistingMesh) {
 				if (targetTransform.gameObject.GetComponent<MeshFilter>() is MeshFilter mf)
 				{
@@ -801,7 +789,7 @@ namespace CustomModules
 				{
 					GameObject.Destroy(mr);
 				}
-			} */
+			}
 
 			// This is the only bit where the root object majorly differs from subobjects
 			if (!isSubObject)
@@ -810,11 +798,11 @@ namespace CustomModules
 				// Add mesh / collider mesh sub GameObject if we have either
 				if (mesh != null || colliderMesh != null)
 				{
-					GameObject meshObj = CreateMeshGameObject(targetTransform, mesh, mat, colliderMesh, physMat, supressBoxColliderFallback);
+					CreateMeshGameObject(targetTransform, mesh, mat, colliderMesh, physMat, supressBoxColliderFallback);
 				}
 				else if (mat != null && hasAnyOverrides)
                 {
-					NuterraMod.logger.Debug("PROCESSING MATERIAL OVERRIDE");
+					NuterraMod.logger.Debug("💬 PROCESSING 🎨 MATERIAL OVERRIDE");
 					// if no mesh is provided, and we specify a material override, override the root object
 					MeshRenderer meshRenderer = block.GetComponent<MeshRenderer>();
 					if (meshRenderer != null)
@@ -823,7 +811,7 @@ namespace CustomModules
                     }
 					else
                     {
-						NuterraMod.logger.Error("FAILED to find MeshRenderer to override");
+						NuterraMod.logger.Error("❌ FAILED to find MeshRenderer to override");
                     }
                 }
 			}
@@ -861,14 +849,14 @@ namespace CustomModules
 				bool makeBoxCollider = CustomParser.GetBoolMultipleKeys(jData, false, "MakeBoxCollider", "GenerateBoxCollider");
 				if(makeBoxCollider)
 				{
-					NuterraMod.logger.Debug($"Generating box collider for {targetTransform.name}");
+					NuterraMod.logger.Debug($"📦 Creating collider for '{targetTransform.name}'");
 					BoxCollider bc = targetTransform.gameObject.EnsureComponent<BoxCollider>();
 					bc.sharedMaterial = physMat;
 					if (mesh != null)
 					{
 						mesh.RecalculateBounds();
 						Vector3 size = mesh.bounds.size * 0.9f;
-						NuterraMod.logger.Debug($"- Adding BoxCollider of size {size}");
+						NuterraMod.logger.Debug($"⚬ Adding BoxCollider of size {size}");
 						bc.size = size;
 						bc.center = mesh.bounds.center;
 					}
@@ -882,7 +870,7 @@ namespace CustomModules
 				bool makeSphereCollider = CustomParser.LenientTryParseBool(jData, "MakeSphereCollider", false);
 				if(makeSphereCollider)
 				{
-					NuterraMod.logger.Debug($"Generating sphere collider for {block.name}");
+					NuterraMod.logger.Debug($"🌐 Creating collider for '{block.name}'");
 					SphereCollider sc = targetTransform.gameObject.EnsureComponent<SphereCollider>();
 					sc.radius = 0.5f;
 					sc.center = Vector3.zero;
@@ -899,7 +887,7 @@ namespace CustomModules
 				// TTQMM Ref: GameObjectJSON.CreateGameObject(jBlock.Deserializer, blockbuilder.Prefab);
 				NuterraDeserializer.sCurrentSearchTransform = block.gameObject.transform;
 				NuterraDeserializer.DeserializeIntoGameObject(jDeserializer, block.gameObject);
-				NuterraMod.logger.Trace("DONE with main GO hierarchy");
+				NuterraMod.logger.Trace("✔️ Finished main GO hierarchy");
 			}
 			#endregion
 			// ------------------------------------------------------
@@ -917,10 +905,18 @@ namespace CustomModules
 						if (CustomParser.TryGetStringMultipleKeys(jSubObject, out string subObjName, "SubOverrideName", "OverrideName", "ObjectName"))
 						{
 							subObject = (targetTransform.RecursiveFindWithProperties(subObjName) as Component)?.gameObject;
+							if (subObject != null)
+							{
+								NuterraMod.logger.Debug("✔️ SubObject Reference FOUND");
+							}
+							else
+							{
+								NuterraMod.logger.Error($"❌ FAILED to find GO with name '{subObjName}'");
+							}
 						}
 						else
 						{
-							NuterraMod.logger.Warn($"Failed to find SubOverrideName tag in sub object JSON - assuming create new");
+							NuterraMod.logger.Warn($"🚨 SubOverrideName missing - assuming create new");
 							subObject = null;
 						}
 
@@ -989,6 +985,47 @@ namespace CustomModules
 			#endregion
 			// ------------------------------------------------------
 		}
+
+		private Mesh GetMeshFromName(ModContents mod, string meshName)
+		{
+			Mesh mesh = null;
+            NuterraMod.logger.Debug($"🔍 Searching 📐 '{meshName}'");
+            foreach (UnityEngine.Object obj in mod.FindAllAssets(meshName))
+            {
+                if (obj != null)
+                {
+                    if (obj is Mesh)
+                    {
+                        mesh = (Mesh)obj;
+                        NuterraMod.logger.Trace($"🔎 Found 📐 '{obj.name}'");
+                    }
+                    else if (obj is GameObject)
+                    {
+                        MeshFilter meshFilter = ((GameObject)obj).GetComponentInChildren<MeshFilter>();
+                        NuterraMod.logger.Trace($"🔎 Found 🧊 '{obj.name}'");
+                        mesh = meshFilter.sharedMesh;
+                        if (mesh == null && meshFilter != null)
+                        {
+                            NuterraMod.logger.Warn($"🚨 SharedMesh 📐 EMPTY");
+                            mesh = meshFilter.mesh;
+                        }
+                    }
+                    else
+                    {
+                        NuterraMod.logger.Trace($"🔎 Found unrelated object {obj.name}");
+                    }
+                }
+            }
+            if (mesh == null)
+			{
+                NuterraMod.logger.Error($"❌ Missing 📐 '{meshName}'");
+            }
+			else
+			{
+                NuterraMod.logger.Debug($"✔️ Found 📐 '{meshName}'");
+            }
+			return mesh;
+        }
 
 		private GameObject CreateMeshGameObject(Transform parent, Mesh mesh, Material mat, Mesh colliderMesh, PhysicMaterial physMat, bool supressBoxColliderFallback)
 		{
@@ -1059,12 +1096,12 @@ namespace CustomModules
 				{
 					RecipeBuilder[chunk].m_Quantity += Count;
 				}
-				NuterraMod.logger.Debug($"Chunk of type {chunk} added to recipe");
+				NuterraMod.logger.Debug($"🧱 {Count} '{chunk}' added to recipe");
 				return RecipeManager.inst.GetChunkPrice(chunk);
 			}
 			else
 			{
-				NuterraMod.logger.Error($"No ChunkTypes found matching given name, nor could parse as ID (int): " + Type);
+				NuterraMod.logger.Error($"❌ Could not resolve chunk '{Type}'");
 			}
 			return 0;
 		}

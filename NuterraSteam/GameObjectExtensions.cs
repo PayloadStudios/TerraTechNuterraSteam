@@ -25,52 +25,59 @@ namespace CustomModules
 		// These functions are copied from GameObjectJSON
 		public static Transform RecursiveFind(this Transform transform, string NameOfChild, string HierarchyBuildup = "")
 		{
-			NuterraMod.logger.Trace($"Recursively checking for path {NameOfChild} in transform {transform.name} with hierarchy {HierarchyBuildup}");
-			if (NameOfChild == "/") return transform;
+			NuterraMod.logger.Trace($"🔍 Recursively checking for path {NameOfChild} in transform {transform.name} with hierarchy {HierarchyBuildup}");
+			NuterraMod.logger.IncreasePrefix();
+			if (NameOfChild == "/")
+            {
+                NuterraMod.logger.DecreasePrefix();
+                return transform;
+			}
 			string cName = NameOfChild.Substring(NameOfChild.LastIndexOf('/') + 1);
 
 			// Do one flat check on the current GO first
-			NuterraMod.logger.Trace($"Checking for child with name {cName}, {transform.childCount} children");
 			for (int i = 0; i < transform.childCount; i++)
 			{
 				var child = transform.GetChild(i);
-				NuterraMod.logger.Trace($"RecursiveFind check: {child.name}");
+				NuterraMod.logger.Trace($" 🔎 RecursiveFind check: {child.name}");
 				if (child.name == cName)
 				{
 					string newHierarchy = HierarchyBuildup + "/" + child.name;
-					NuterraMod.logger.Trace($"RecursiveFind: {newHierarchy} {NameOfChild}");
 					if (newHierarchy.EndsWith(NameOfChild))
 					{
-						NuterraMod.logger.Trace($"MATCHED {NameOfChild} to hierarchy {newHierarchy}");
-						return child;
-					}
-					else
-                    {
-						NuterraMod.logger.Trace($"FAILED to match {NameOfChild} to hierarchy {newHierarchy}");
+						NuterraMod.logger.Trace($"✔️ MATCHED {NameOfChild} to hierarchy {newHierarchy}");
+                        NuterraMod.logger.DecreasePrefix();
+                        return child;
                     }
-				}
-			}
+                    else
+                    {
+                        NuterraMod.logger.Trace($" ⚠️ FAILED to match {NameOfChild} to hierarchy {newHierarchy}");
+                    }
+                }
+            }
+            NuterraMod.logger.Trace($"⚠️ FAILED to match {NameOfChild} to direct child of {transform.name}");
 
-			// Go to fallback GO check when the first check fails
-			for (int i = 0; i < transform.childCount; i++)
+            // Go to fallback GO check when the first check fails
+            for (int i = 0; i < transform.childCount; i++)
 			{
 				var c = transform.GetChild(i);
-				NuterraMod.logger.Trace($"Calling recursiveFind: {c.name}");
+				NuterraMod.logger.Trace($"👉 Calling recursiveFind: {c.name}");
 				string newHierarchy = HierarchyBuildup + "/" + c.name;
 				var child = c.RecursiveFind(NameOfChild, newHierarchy);
 				if (child != null)
-				{
-					return child;
+                {
+                    NuterraMod.logger.DecreasePrefix();
+                    return child;
 				}
-			}
-			return null;
+            }
+            NuterraMod.logger.DecreasePrefix();
+            return null;
 		}
 
 		public static object RecursiveFindWithProperties(this Transform transform, string nameOfProperty, Transform fallback = null)
 		{
 			try
 			{
-				NuterraMod.logger.Debug($"Searching for {nameOfProperty} under transform {transform.name}, fallback {fallback}");
+				NuterraMod.logger.Debug($"🔍 Searching for {nameOfProperty} under transform {transform.name}, fallback {fallback}");
 
 				int propIndex = nameOfProperty.IndexOf('.');
 				if (propIndex == -1)

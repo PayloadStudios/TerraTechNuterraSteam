@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace CustomModules
 {
@@ -23,17 +24,40 @@ namespace CustomModules
 		internal static string DeserializingBlock = "UNKNOWN";
 		internal static ModContents DeserializingMod = null;
 
+		public static MemberInfo GetMemberWithName(Type targetType, string name)
+		{
+            BindingFlags instanceFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+			MemberInfo[] members = targetType.GetMembers(instanceFlags);
+			foreach (MemberInfo member in members)
+			{
+				if (member.Name == name)
+				{
+					return member;
+				}
+				object[] attributes = member.GetCustomAttributes(typeof(FormerlySerializedAsAttribute), true);
+				foreach (object attribute in attributes)
+				{
+					if(attribute is FormerlySerializedAsAttribute formerlySerializedAs && formerlySerializedAs.oldName == name)
+                    {
+                        NuterraMod.logger.Warn($"🚨 Property '{name}' on type '{targetType}' has been renamed to '{member.Name}'");
+                        return member;
+					}
+				}
+			}
+			return null;
+		}
+
 		// TTQMM Ref: GameObjectJSON.ApplyValues(object instance, Type instanceType, JObject json, string Spacing)
 		// TTQMM Ref: GameObjectJSON.ApplyValue(object instance, Type instanceType, JProperty jsonProperty, string Spacing)
 		// I've embedded these two functions
 		public static object DeserializeJSONObject(object target, Type targetType, JObject jObject)
 		{
-			NuterraMod.logger.Debug($"Deserializing JSON OBJ");
+			NuterraMod.logger.Trace($"🖨️ DeserializeJSONObject START");
+			NuterraMod.logger.IncreasePrefix(1);
 			// Let's get reflective!
 			foreach (JProperty jProperty in jObject.Properties())
 			{
-				NuterraMod.logger.Debug($" Attempting to deserialize {targetType.ToString()}.{jProperty.Name}");
-				BindingFlags bind = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+				NuterraMod.logger.Debug($"🔍 Attempting to deserialize {targetType.ToString()}.{jProperty.Name}");
 				try
 				{
 					// Parse our string
@@ -52,26 +76,28 @@ namespace CustomModules
 						name = split[1];
 					}
 
-					FieldInfo fieldInfo = targetType.GetField(name, bind);
-					PropertyInfo propertyInfo = targetType.GetProperty(name, bind);
-
-					MemberInfo memberInfo = null;
-					Type memberType = null;
-					if (propertyInfo != null)
+					MemberInfo memberInfo = GetMemberWithName(targetType, name);
+					if (memberInfo == null)
 					{
-						memberType = propertyInfo.PropertyType;
-						memberInfo = propertyInfo;
-						
+						NuterraMod.logger.Error($"🚨 Property '{name}' does not exist in type '{targetType}'");
+						continue;
 					}
-					else if(fieldInfo != null)
+					Type memberType = null;
+					if (memberInfo.MemberType == MemberTypes.Field && memberInfo is FieldInfo fieldInfo)
 					{
 						memberType = fieldInfo.FieldType;
-						memberInfo = fieldInfo;
 					}
 					else
 					{
-						NuterraMod.logger.Error($" Property '{name}' does not exist in type '{targetType}'");
-						continue;
+						fieldInfo = null;
+					}
+					if (memberInfo.MemberType == MemberTypes.Property && memberInfo is PropertyInfo propertyInfo)
+					{
+						memberType = propertyInfo.PropertyType;
+					}
+					else
+					{
+						propertyInfo = null;
 					}
 
 					if (jProperty.Value != null)
@@ -81,32 +107,32 @@ namespace CustomModules
                         {
 							case MemberTypes.Event:
 								{
-									NuterraMod.logger.Error($" Trying to assign value to a Event");
+									NuterraMod.logger.Error($"❌ Trying to assign value to a Event");
 									break;
 								}
 							case MemberTypes.Constructor:
                                 {
-									NuterraMod.logger.Error($" Trying to assign value to a Constructor");
+									NuterraMod.logger.Error($"❌ Trying to assign value to a Constructor");
 									break;
                                 }
 							case MemberTypes.Method:
                                 {
-									NuterraMod.logger.Error($" Trying to assign value to a Method");
+									NuterraMod.logger.Error($"❌ Trying to assign value to a Method");
 									break;
                                 }
 							case MemberTypes.TypeInfo:
                                 {
-									NuterraMod.logger.Error($" Trying to assign value to a Type");
+									NuterraMod.logger.Error($"❌ Trying to assign value to a Type");
 									break;
                                 }
 							case MemberTypes.NestedType:
                                 {
-									NuterraMod.logger.Error($" Trying to assign value to a NestedType");
+									NuterraMod.logger.Error($"❌ Trying to assign value to a NestedType");
 									break;
                                 }
 							case MemberTypes.Custom:
                                 {
-									NuterraMod.logger.Error($" Trying to assign value to an custom MemberInfo");
+									NuterraMod.logger.Error($"❌ Trying to assign value to an custom MemberInfo");
 									break;
                                 }
 							default:
@@ -139,7 +165,7 @@ namespace CustomModules
                     }
 					else
                     {
-						NuterraMod.logger.Warn($" Property Value is NULL??");
+						NuterraMod.logger.Warn($"🚨 Property Value is NULL??");
 						DeserializeValueIntoTarget(target, memberInfo, null);
 						continue;
 					}
@@ -147,7 +173,7 @@ namespace CustomModules
 					bool isTransformOrGO = typeof(Transform).IsAssignableFrom(memberType) || typeof(GameObject).IsAssignableFrom(memberType);
 					bool isIterable = !isTransformOrGO && (memberType.IsArray || (memberType.IsGenericType && typeof(IList).IsAssignableFrom(memberType)));
 					bool isDictionary = !isTransformOrGO && memberType.IsGenericType && typeof(IDictionary).IsAssignableFrom(memberType);
-					NuterraMod.logger.Debug($"Property is of type {memberType.FullName.ToString()}, iterable: {isIterable}, dictionary: {isDictionary}");
+					NuterraMod.logger.Debug($"🔎 Property is of type {memberType.FullName.ToString()}, iterable: {isIterable}, dictionary: {isDictionary}");
 
 					// Switch on the type of JSON we are provided with
 					switch (jProperty.Value.Type)
@@ -158,11 +184,11 @@ namespace CustomModules
 							if (isDictionary || !isIterable) {
 								if (instantiate)
                                 {
-									NuterraMod.logger.Debug($"Attempting to deserialize instantiated object into field {name}");
+									NuterraMod.logger.Debug($"🖨️ Attempting to deserialize instantiated object into field {name}");
                                 }
 								else
                                 {
-									NuterraMod.logger.Debug($"Attempting to deserialize object into field {name}");
+									NuterraMod.logger.Debug($"🖨️ Attempting to deserialize object into field {name}");
                                 }
 								JObject jChild = jProperty.Value as JObject;
 								SetJSONObject(jChild, target, wipe, instantiate, fieldInfo, propertyInfo, propertyInfo == null);
@@ -170,7 +196,7 @@ namespace CustomModules
 							else if (memberType.IsValueType)
 							{
 								// is a struct
-								NuterraMod.logger.Debug($"Detected {memberType} is Struct");
+								NuterraMod.logger.Debug($"🔎 Detected {memberType} is struct");
 								JObject jChild = jProperty.Value as JObject;
 								SetJSONObject(jChild, target, wipe, instantiate, fieldInfo, propertyInfo, propertyInfo == null);
 							}
@@ -185,7 +211,7 @@ namespace CustomModules
 							// Handle arrays
 							if (isIterable)
 							{
-								NuterraMod.logger.Debug($"Attempting to deserialize array into field {name}");
+								NuterraMod.logger.Debug($"🖨️ Attempting to deserialize array into field {name}");
 								JArray jArray = jProperty.Value as JArray;
 								object sourceArray = null;
 								if (!wipe)
@@ -196,12 +222,19 @@ namespace CustomModules
 
 								// Then set it back to the field / property
 								memberInfo.SetValueOfField(target, newArray);
+								if (newArray != null)
+								{
+									NuterraMod.logger.Debug("✔️ JSONArray deserialized");
+								}
+								else
+								{
+									NuterraMod.logger.Warn("🚨 JSONArray FAILED, setting to null");
+								}
 							}
 							else
                             {
 								throw new Exception("Trying to deserialize an array into a NON-iterable type!");
 							}
-
 							break;
 						}
 						default:
@@ -209,21 +242,26 @@ namespace CustomModules
 							// The leaf node, parse the value into place
 							if (!isIterable && !isDictionary)
 							{
-								NuterraMod.logger.Debug($"Deserializing JValue into target");
 								if (jProperty.Value is JValue jValue)
 								{
-									NuterraMod.logger.Debug($"Attempting to deserialize value {jValue.Value?.ToString()} into field {name}");
-									DeserializeValueIntoTarget(target, memberInfo, jValue);
-								}
+									NuterraMod.logger.Debug($"🖨️ Attempting to deserialize value {jValue.Value?.ToString()} into field {name}");
+                                    if (DeserializeValueIntoTarget(target, memberInfo, jValue))
+                                    {
+                                        NuterraMod.logger.Debug($"✔️ Deserialization success");
+                                    }
+                                }
 								else
 								{
-									NuterraMod.logger.Error($"Attempting to deserialize NON-VALUE {jProperty.Value?.ToString()} into field {name}");
+									NuterraMod.logger.Error($"❌ Attempting to deserialize NON-VALUE {jProperty.Value?.ToString()} into field {name}");
 								}
 							}
 							else if (jProperty.Value.Type == JTokenType.Null || (jProperty.Value is JValue jValue && jValue.Value == null))
 							{
-								NuterraMod.logger.Debug($"Attempting to deserialize null into field {name}");
-								DeserializeValueIntoTarget(target, memberInfo, null);
+								NuterraMod.logger.Debug($"🖨️ Attempting to deserialize null into field {name}");
+								if (DeserializeValueIntoTarget(target, memberInfo, null))
+								{
+									NuterraMod.logger.Debug($"✔️ Deserialization success");
+                                }
 							}
 							else
                             {
@@ -235,11 +273,12 @@ namespace CustomModules
 				}
 				catch (Exception e)
 				{
-					NuterraMod.logger.Error($" Failed to deserialize Json object:\n{e.ToString()}");
+					NuterraMod.logger.Error($"❌ Failed to deserialize Json object");
+					NuterraMod.logger.Error(e);
 				}
-			}
-
-			NuterraMod.logger.Debug($"JSON OBJ DONE");
+            }
+            NuterraMod.logger.DecreasePrefix(1);
+            NuterraMod.logger.Trace($"🏁 DeserializeJSONObject DONE");
 			return target;
 		}
 
@@ -248,10 +287,12 @@ namespace CustomModules
 		{
 			if (target == null)
 				target = new GameObject("New Deserialized Object");
-			NuterraMod.logger.Trace($"Deserializing GameObject {target.name}");
-			PushSearchTransform(target.transform);
+			NuterraMod.logger.Debug($"🧊 Deserializing GameObject {target.name}");
+            NuterraMod.logger.IncreasePrefix(2);
+            PushSearchTransform(target.transform);
 			GameObject result = DeserializeIntoGameObject_Internal(jObject, target);
-			NuterraMod.logger.Debug($"Finished deserializing GameObject {target.name}");
+            NuterraMod.logger.DecreasePrefix(2);
+            NuterraMod.logger.Debug($"🏁 Finished deserializing GameObject {target.name}");
 			PopSearchTransform();
 			return result;
 		}
@@ -289,10 +330,10 @@ namespace CustomModules
 
 					if (Reference) // Copy a child object or component from another prefab
 					{
-						NuterraMod.logger.Debug($" Deserializing Reference {name}");
+						NuterraMod.logger.Debug($"🔍 Locating Reference '{name}'");
 						if (TTReferences.GetReferenceFromBlockResource(name, out object reference))
 						{
-							NuterraMod.logger.Debug($" Found reference {reference}");
+							NuterraMod.logger.Debug($"✔️ Found reference '{reference}'");
 							if (reference is GameObject || reference is Transform)
 							{
 								// If the reference was to a GameObject or a Transform, then we just want to copy that whole object
@@ -310,7 +351,7 @@ namespace CustomModules
 								childObject.transform.localPosition = referenceObject.transform.localPosition;
 								childObject.transform.localRotation = referenceObject.transform.localRotation;
 								childObject.transform.localScale = referenceObject.transform.localScale;
-								NuterraMod.logger.Debug($" Instantiated reference {childObject} as child of {target}");
+								NuterraMod.logger.Debug($"🧊 Instantiated reference '{childObject}' as child of '{target}'");
 							}
 							else if (reference is Component)
 							{
@@ -321,7 +362,7 @@ namespace CustomModules
 								Component existingComponent = target.GetComponent(type);
 								if (existingComponent == null)
 								{
-									NuterraMod.logger.Warn($" Could not find Component of type {type} - creating one now for shallow copy");
+									NuterraMod.logger.Warn($"🚨 Could not find Component of type '{type}' - creating one now for shallow copy");
 									existingComponent = target.AddComponent(type);
 								}
 
@@ -332,19 +373,19 @@ namespace CustomModules
 							}
 							else
 							{
-								NuterraMod.logger.Error($" Unknown object {reference} found as reference");
+								NuterraMod.logger.Error($"❌ Unknown object '{reference}' found as reference");
 								continue;
 							}
 						}
 						else
 						{
-							NuterraMod.logger.Error($" Could not find reference for {name} in deserialization");
+							NuterraMod.logger.Error($"❌ Could not find reference for '{name}' in deserialization");
 							continue;
 						}
 					}
 					else // Copy a child object from this prefab
 					{
-						NuterraMod.logger.Debug($" Deserializing gameObject {name}");
+						NuterraMod.logger.Debug($"🔍 Locating gameObject '{name}'");
 						if (Duplicate && (name.Contains('/') || name.Contains('.')))
 						{
 							object foundObject = GetCurrentSearchTransform().RecursiveFindWithProperties(name, fallback: GetRootSearchTransform());
@@ -358,11 +399,11 @@ namespace CustomModules
 								{
 									childObject = foundGameObject;
 								}
-								NuterraMod.logger.Debug($"Found object {childObject} under {childObject.transform.parent}");
+								NuterraMod.logger.Debug($"🔎 Found object '{childObject}' under '{childObject.transform.parent}'");
 							}
 							else
                             {
-								NuterraMod.logger.Trace($" Failed to find object with name {name}");
+								NuterraMod.logger.Trace($"❌ Failed to find object with name '{name}'");
 							}
 						}
 						if (childObject == null)
@@ -370,11 +411,11 @@ namespace CustomModules
 							childObject = target.transform.Find(name)?.gameObject;
 							if (childObject)
 							{
-								NuterraMod.logger.Debug($"Found object {childObject} with parent {childObject.transform.parent} under {target}");
+								NuterraMod.logger.Debug($"✔️ Found object '{childObject}' with parent '{childObject.transform.parent}' under '{target}'");
 							}
 							else
                             {
-								NuterraMod.logger.Debug($"Failed to find object {childObject} under {target}");
+								NuterraMod.logger.Warn($"🚨 Failed to find object '{name}' under '{target}', creating new");
                             }
 						}
 					}
@@ -384,12 +425,12 @@ namespace CustomModules
 					{
 						if (jProperty.Value.Type == JTokenType.Null)
 						{
-							NuterraMod.logger.Warn($" Deserializing failed to find {name} to delete");
+							NuterraMod.logger.Warn($"🚨 Deserializing failed to find {name} to delete");
 							continue;
 						}
 						else
 						{
-							NuterraMod.logger.Debug($" Creating new GO with name {name} under GO {target.name}");
+							NuterraMod.logger.Debug($"🧊 Creating new GO with name {name} under GO {target.name}");
 							childObject = new GameObject(name);
 							childObject.transform.parent = target.transform;
 						}
@@ -399,7 +440,7 @@ namespace CustomModules
 						// If we've got no JSON data, that means we want to delete this target
 						if(jProperty.Value.Type == JTokenType.Null)
 						{
-							NuterraMod.logger.Debug($" Deleting gameObject {childObject}");
+							NuterraMod.logger.Debug($"💣 Deleting gameObject '{childObject}'");
 							GameObject.DestroyImmediate(childObject);
 							childObject = null;
 							continue;
@@ -423,14 +464,14 @@ namespace CustomModules
 						}
 					}
 
-					NuterraMod.logger.Trace($" Deserializing jProp {jProperty.Name} --- {jProperty.Value}");
+					NuterraMod.logger.Trace($"🖨️ Deserializing jProp '{jProperty.Name}' --- {jProperty.Value}");
 					// Switch back to DeserializeIntoGameObject so this will also update the child hierarchy
 					DeserializeIntoGameObject((JObject)jProperty.Value, childObject);
 				}
 				else
 				{
 					string[] split = jProperty.Name.Split('|');
-					NuterraMod.logger.Debug($" Deserializer adding component {split[0]} to gameObject {target}");
+					NuterraMod.logger.Debug($"🖨️ Deserializer adding component {split[0]} to gameObject '{target}'");
 
 					// Format will be "{ComponentType} {Index}" where the index specifies the child index if there are multiple targets
 					string typeNameAndIndex = split[0];
@@ -439,7 +480,7 @@ namespace CustomModules
 
 					if (type != null)
 					{
-						NuterraMod.logger.Trace($" Deserializer ready to find or create instance of type {type} on gameObject {target}");
+						NuterraMod.logger.Trace($"🕓 Deserializer ready to find or create instance of type {type} on gameObject '{target}'");
 
 						// See if we have an existing component
 						Component component = target.GetComponentWithIndex(typeNameAndIndex);
@@ -448,43 +489,47 @@ namespace CustomModules
 						if (jProperty.Value.Type == JTokenType.Null)
 						{
 							if (component != null)
-								Component.DestroyImmediate(component);
+                            {
+                                NuterraMod.logger.Trace($"💣 Destroying component");
+                                Component.DestroyImmediate(component);
+							}
 							else
-								NuterraMod.logger.Error($" Could not find component of type {typeNameAndIndex} to destroy");
+							{
+								NuterraMod.logger.Error($"❌ Could not find component of type {typeNameAndIndex} to destroy");
+							}
 						}
 						else // We have some data, let's process it
 						{
 							// If we couldn't find the component, make a new one
 							if (component == null)
 							{
-								NuterraMod.logger.Warn($" Failed to find component {typeNameAndIndex} on target - making one now");
+								NuterraMod.logger.Warn($"🚨 Failed to find component {typeNameAndIndex} on target - making one now");
 								component = target.gameObject.AddComponent(type);
 							}
 							else
 							{
-								NuterraMod.logger.Trace($" Component found");
+								NuterraMod.logger.Trace($"✔️ Component found");
 							}
 
 							// If we still can't find one, get it. This should like never happen, right?
 							if (component == null)
 							{
-								NuterraMod.logger.Error($" Failed to find {typeNameAndIndex}, failed to AddComponent, but trying GetComponent");
+								NuterraMod.logger.Warn($"🚨 Failed to find {typeNameAndIndex}, failed to AddComponent, but trying GetComponent");
 								component = target.gameObject.GetComponent(type);
 							}
 
 							// If we still don't have one, exit
 							if (component == null)
 							{
-								NuterraMod.logger.Error($" Could not find component {typeNameAndIndex}");
+								NuterraMod.logger.Error($"❌ Could not find component {typeNameAndIndex}");
 								continue;
 							}
 
 							// Now deserialize the JSON into the new Component
-							NuterraMod.logger.Trace($" Preparing deserialization of property {jProperty.Name}");
 							DeserializeJSONObject(component, type, jProperty.Value as JObject);
 						}
 
-						NuterraMod.logger.Trace($" Processing complete for type {type}");
+						NuterraMod.logger.Debug($"✔️ Processing complete for type {type}");
 						if (type == typeof(UnityEngine.Transform))
 						{
 							UnityEngine.Transform transform = component as Transform;
@@ -493,13 +538,13 @@ namespace CustomModules
 							sb.Append($"\t\"localEulerAngles\": {{\"x\": {transform.localEulerAngles.x}, \"y\": {transform.localEulerAngles.y}, \"z\": {transform.localEulerAngles.z}}},\n");
 							sb.Append($"\t\"localScale\": {{\"x\": {transform.localScale.x}, \"y\": {transform.localScale.y}, \"z\": {transform.localScale.z}}}\n");
 							sb.Append("}");
-							NuterraMod.logger.Trace($" Deserialized transform as: {sb.ToString()}");
+							NuterraMod.logger.Trace($"🔢 Deserialized transform as: {sb.ToString()}");
 
 						}
 					}
 					else
 					{
-						NuterraMod.logger.Error($" Could not find type {typeNameAndIndex}");
+						NuterraMod.logger.Error($"❌ Could not find type {typeNameAndIndex}");
 					}
 				}
 			}
@@ -539,16 +584,16 @@ namespace CustomModules
 		{
 			if (CanConvert(valueType, targetType, out UnaryExpression convertor))
 			{
-				NuterraMod.logger.Debug($"Convertor found from {valueType} => {targetType}");
+				NuterraMod.logger.Debug($" 🔎 Convertor found from {valueType} => {targetType}");
 				if (convertor.Method != null)
 				{
-					NuterraMod.logger.Debug($"Convertor has method defined");
+					NuterraMod.logger.Debug($" 🔎 Convertor has method");
 					converted = convertor.Method.Invoke(null, new object[] { value });
 					return true;
 				}
 				else
 				{
-					NuterraMod.logger.Debug($"Trying dynamic conversion");
+					NuterraMod.logger.Debug($" ➤ Trying dynamic conversion");
 					Conversion conversion = new Conversion
 					{
 						from = valueType,
@@ -573,7 +618,7 @@ namespace CustomModules
 		}
 
 		// TTQMM Ref: JsonToGameObject.SetJSONValue(JValue jValue, JProperty jsonProperty, object _instance, bool UseField, FieldInfo tField = null, PropertyInfo tProp = null)
-		private static void DeserializeValueIntoTarget(object target, MemberInfo member, JValue jValue)
+		private static bool DeserializeValueIntoTarget(object target, MemberInfo member, JValue jValue)
 		{
 			if (member is FieldInfo field)
 			{
@@ -594,7 +639,7 @@ namespace CustomModules
 					}
 					catch (Exception e)
 					{
-						NuterraMod.logger.Warn($"Convertor failed");
+						NuterraMod.logger.Warn($" 🚨 Convertor failed");
 					}
 					if (!successfulConversion)
 					{
@@ -602,6 +647,7 @@ namespace CustomModules
 					}
 				}
 				member.SetValueOfField(target, converted);
+				return true;
 			}
 			else if (member is PropertyInfo property)
             {
@@ -627,8 +673,8 @@ namespace CustomModules
 						}
 						catch (Exception e)
 						{
-							NuterraMod.logger.Warn($"Convertor failed");
-							NuterraMod.logger.Warn(e.ToString());
+							NuterraMod.logger.Warn($" 🚨 Convertor failed");
+							NuterraMod.logger.Debug(e.ToString());
 						}
 						if (!successfulConversion)
 						{
@@ -636,23 +682,25 @@ namespace CustomModules
 						}
 					}
                     setter.Invoke(instance, new object[] { converted });
+					return true;
                 }
 				else
                 {
 					if (property.CanRead)
 					{
-						NuterraMod.logger.Error($"Property {property.DeclaringType}.{property.ToString()}: {property.PropertyType} is NOT WRITEABLE");
+						NuterraMod.logger.Error($"❌ Property {property.DeclaringType}.{property.ToString()}: {property.PropertyType} is NOT WRITEABLE");
 					}
                     else
                     {
-                        NuterraMod.logger.Error($"Property {property.DeclaringType}.{property.ToString()}: {property.PropertyType} is NEITHER READABLE NOR WRITEABLE?");
+                        NuterraMod.logger.Error($"❌ Property {property.DeclaringType}.{property.ToString()}: {property.PropertyType} is NEITHER READABLE NOR WRITEABLE?");
                     }
                 }
             }
 			else
             {
-				NuterraMod.logger.Error($"INVALID MemberInfo {member.DeclaringType}.{member.ToString()}");
+				NuterraMod.logger.Error($"❌ INVALID MemberInfo {member.DeclaringType}.{member.ToString()}");
 			}
+			return false;
 		}
 
 		private static Dictionary<Type, ConstructorInfo[]> CachedTypeConstructors = new Dictionary<Type, ConstructorInfo[]>();
@@ -678,7 +726,7 @@ namespace CustomModules
 			}
 			catch (Exception e)
             {
-				NuterraMod.logger.Warn($"No constructor found");
+				NuterraMod.logger.Warn($"🚨 No constructor found");
 			}
 			return typeConstructor;
 		}
@@ -689,19 +737,20 @@ namespace CustomModules
 				if (constructor != null)
 				{
 					result = constructor.Invoke(new object[] { input });
-					NuterraMod.logger.Debug($"Constructor {constructor.ToString()} worked");
+					NuterraMod.logger.Debug($" ✔️ Constructor {constructor.ToString()} worked");
 					return true;
 				}
 				else
-				{
-					result = null;
+                {
+                    NuterraMod.logger.Warn($" 🚨 Tried to use null constructor");
+                    result = null;
 					return false;
                 }
             }
 			catch (Exception e)
             {
-				NuterraMod.logger.Warn($"Constructor {constructor.ToString()} failed");
-				NuterraMod.logger.Warn(e.ToString());
+				NuterraMod.logger.Warn($" 🚨 Constructor {constructor.ToString()} failed");
+				NuterraMod.logger.Debug(e.ToString());
 				result = null;
 				return false;
 			}
@@ -710,14 +759,14 @@ namespace CustomModules
 		{
 			try // Try transforming to the target type
 			{
-				NuterraMod.logger.Debug($"Trying to cast value {jValue.Value} to type {type}");
+				NuterraMod.logger.Debug($" ➤ Trying to cast value {jValue.Value} to type {type}");
 				object value = jValue.ToObject(type);
-				NuterraMod.logger.Debug($"Cast successful");
+				NuterraMod.logger.Debug($" ✔️ Cast successful");
 				return value;
 			}
 			catch // If we failed, we can try interpreting the jValue as a reference string
 			{
-				NuterraMod.logger.Warn($"Cast to {type} failed, trying constructors if possible");
+				NuterraMod.logger.Warn($" 🚨 Cast to {type} failed, trying constructors if possible");
 				string value = null;
 				object result;
 				try
@@ -726,8 +775,8 @@ namespace CustomModules
 				}
 				catch (Exception e)
                 {
-					NuterraMod.logger.Error($"FAILED to cast to string");
-					NuterraMod.logger.Error(e);
+					NuterraMod.logger.Warn($" 🚨 FAILED to cast to string");
+					NuterraMod.logger.Debug(e.ToString());
                 }
 
 				ConstructorInfo constructor;
@@ -804,14 +853,14 @@ namespace CustomModules
 								}
 							}
 
-							NuterraMod.logger.Debug($"Constructors all failed, treating as string reference");
+							NuterraMod.logger.Debug($" 🚨 Constructors all failed, treating as string reference");
 							// Trim anything before the |
 							string targetName = referenceString.Substring(refIndex + 1);
 							// try to deserialize the value reference
 							return DeserializeValueReference(targetName, referenceString, type);
 						}
 				}
-				NuterraMod.logger.Error($"Value deserialization failed");
+				NuterraMod.logger.Error($" ❌ Value deserialization failed");
 				return null;
 			}
 		}
@@ -822,7 +871,7 @@ namespace CustomModules
 		{
 			if (searchFull.StartsWith("Reference"))
 			{
-				NuterraMod.logger.Trace($" Detected value {search} as Reference");
+				NuterraMod.logger.Trace($" 🔎 Detected value {search} as Reference");
 				if (TTReferences.GetReferenceFromBlockResource(search, out var result)) // Get value from a block in the game
 					return result;
 			}
@@ -830,11 +879,11 @@ namespace CustomModules
 			{
 				if (!typeof(Transform).IsAssignableFrom(outType) && !typeof(GameObject).IsAssignableFrom(outType) && TTReferences.TryFind(search, DeserializingMod, outType, out object result))
 				{
-					NuterraMod.logger.Trace($" value has been retrieved for {search}");
+					NuterraMod.logger.Trace($" 🔎 value has been retrieved for {search}");
 					return result; // Get value from a value in the user database
 				}
 
-				NuterraMod.logger.Trace($" Attempting to search the local transform tree for {search}");
+				NuterraMod.logger.Trace($" 🔍 Attempting to search the local transform tree for {search}");
 				try
 				{
 					// Last fallback, we try searching our current working tree
@@ -842,11 +891,12 @@ namespace CustomModules
 					if (recursive != null)
 						return recursive; // Get value from this block
 					else
-						NuterraMod.logger.Warn($" FAILED to find {search} under current block");
+						NuterraMod.logger.Warn($" 🚨 FAILED to find {search} under current block");
 				}
 				catch (Exception e)
 				{
-					NuterraMod.logger.Error($" Failed to find {search} with error:\n{e.ToString()}");
+					NuterraMod.logger.Error($" ❌ Failed to find {search} with error");
+					NuterraMod.logger.Error(e);
 				}
 			}
 			return null;
@@ -923,9 +973,11 @@ namespace CustomModules
 
 				return newList;
 			}
-			catch(Exception)
-			{
-				return null;
+			catch(Exception e)
+            {
+                NuterraMod.logger.Error("❌ Failed to make JSON array");
+                NuterraMod.logger.Error(e);
+                return null;
 			}
 		}
 
@@ -940,67 +992,72 @@ namespace CustomModules
 		private static Stack<Transform> sTransformSearchStack = new Stack<Transform>();
 		private static Transform GetRootSearchTransform()
 		{
-			NuterraMod.logger.Debug($"Current root search transform is {sCurrentSearchTransform}");
+			NuterraMod.logger.Debug($"🔍 Current root search transform is {sCurrentSearchTransform}");
 			return sCurrentSearchTransform;
 		}
 		private static Transform GetCurrentSearchTransform() {
 			Transform transform = sTransformSearchStack.Peek();
-			NuterraMod.logger.Debug($"Current search transform is {transform}");
+			NuterraMod.logger.Debug($"🔍 Current search transform is {transform}");
 			return transform;
 		}
 		private static void PushSearchTransform(Transform t) {
-			NuterraMod.logger.Trace($"[STACK] PUSH transform {t}");
+			NuterraMod.logger.Trace($"⮞ PUSH transform {t}");
 			sTransformSearchStack.Push(t);
 		}
 		private static void PopSearchTransform()
 		{
 			Transform removed = sTransformSearchStack.Pop();
-			NuterraMod.logger.Trace($"[STACK] POP transform {removed}");
+			NuterraMod.logger.Trace($"⮜ POP transform {removed}");
 		}
 
 		// TTQMM Ref : GameObjectJSON.SetJSONObject(JObject jObject, object instance, string Spacing, bool Wipe, bool Instantiate, FieldInfo tField, PropertyInfo tProp, bool UseField)
 		private static void SetJSONObject(JObject jObject, object target, bool wipe, bool instantiate, FieldInfo tField, PropertyInfo tProp, bool UseField)
-		{
-			if (UseField)
+        {
+            NuterraMod.logger.Trace($"📜 SetJSON START");
+			NuterraMod.logger.IncreasePrefix(1);
+            if (UseField)
 			{
-				object rewrite = SetJSONObject_Internal(jObject, wipe, instantiate, wipe ? null : tField.GetValue(target), tField.FieldType, tField.Name);
+				object rewrite = SetJSONObject_Internal(jObject, wipe, instantiate, wipe ? null : tField.GetValue(target), tField.FieldType);
 				try {
-					NuterraMod.logger.Debug($"Setting value of field {tField.Name}");
+					NuterraMod.logger.Debug($"👉 Setting value of field {tField.FieldType}.{tField.Name}");
 					tField.SetValue(target, rewrite);
 				}
 				catch (Exception E)
 				{
-					NuterraMod.logger.Error($"Failed to set JSON object as value of field {tField.Name}\n" + E.ToString());
+					NuterraMod.logger.Error($"❌ Failed to set JSON object as value of field {tField.Name}");
+					NuterraMod.logger.Error(E);
 				}
 			}
 			else
 			{
-				object rewrite = SetJSONObject_Internal(jObject, wipe, instantiate, wipe || !tProp.CanRead ? null : tProp.GetValue(target, null), tProp.PropertyType, tProp.Name);
+				object rewrite = SetJSONObject_Internal(jObject, wipe, instantiate, wipe || !tProp.CanRead ? null : tProp.GetValue(target, null), tProp.PropertyType);
 				if (tProp.CanWrite)
 				{
 					try
 					{
-						NuterraMod.logger.Debug($"Setting value of property {tProp.Name}");
+						NuterraMod.logger.Debug($"👉 Setting value of property {tProp.PropertyType}.{tProp.Name}");
 						tProp.SetValue(target, rewrite, null);
 					}
 					catch (Exception E)
 					{
-						NuterraMod.logger.Error($"Failed to set JSON object as value of property {tProp.Name}\n" + E.ToString());
+						NuterraMod.logger.Error($"❌ Failed to set JSON object as value of property {tProp.Name}");
+						NuterraMod.logger.Error(E);
 					}
 				}
 				else
                 {
-					NuterraMod.logger.Warn($"Property {tProp.Name} on type {tProp.DeclaringType} is not writeable");
+					NuterraMod.logger.Warn($"❌ Property {tProp.Name} on type {tProp.DeclaringType} is not writeable");
                 }
-			}
-			NuterraMod.logger.Debug($"SetJSON END");
+            }
+            NuterraMod.logger.DecreasePrefix(1);
+            NuterraMod.logger.Trace($"🏁 SetJSON END");
 		}
 
 		// TTQMM Ref: GameObjectJSON.SetJSONObject_Internal(JObject jObject, string Spacing, bool Wipe, bool Instantiate, object original, Type type, string name)
-		private static object SetJSONObject_Internal(JObject jObject, bool wipe, bool instantiate, object original, Type originalType, string name)
-		{
-			NuterraMod.logger.Debug($"Setting field/property {name} value (type {originalType})");
-			object rewrite = null;
+		private static object SetJSONObject_Internal(JObject jObject, bool wipe, bool instantiate, object original, Type originalType)
+        {
+            NuterraMod.logger.IncreasePrefix(1);
+            object rewrite = null;
 
 			// First point of order, some types have to be instantiated
 			if (kForceInstantiateObjectTypes.Contains(originalType))
@@ -1050,12 +1107,12 @@ namespace CustomModules
 					{
 						if (typeof(ScriptableObject).IsAssignableFrom(originalType))
 						{
-							NuterraMod.logger.Debug($"Detected {originalType} is ScriptableObject");
+							NuterraMod.logger.Debug($"🔎 Detected {originalType} is ScriptableObject");
 							original = ScriptableObject.CreateInstance(originalType);
 						}
 						else
 						{
-							NuterraMod.logger.Debug($"{originalType} is NOT ScriptableObject");
+							NuterraMod.logger.Debug($"🔎 {originalType} is NOT ScriptableObject");
 							original = Activator.CreateInstance(originalType);
 						}
 					}
@@ -1083,14 +1140,14 @@ namespace CustomModules
 							}
 							catch
 							{
-								NuterraMod.logger.Warn($" Failed to match constructor for {originalType}");
+								NuterraMod.logger.Warn($"🚨 Failed to match constructor for {originalType}");
 							}
 						}
 					}
 					if (original != null)
 						rewrite = DeserializeJSONObject(original, originalType, jObject);
 					else
-						NuterraMod.logger.Error($" Failed to create instance of {originalType}");
+						NuterraMod.logger.Error($"⛔ Failed to create instance of {originalType}");
 				}
 			}
 			else // We are not wiping the source and we have a reference original
@@ -1115,7 +1172,7 @@ namespace CustomModules
 						else
 						{
 							rewrite = newObject.GetComponent(originalType);
-							NuterraMod.logger.Debug($"Finished deserializing data into component {(rewrite as Component).name}");
+							NuterraMod.logger.Debug($"🏁 Finished deserializing data into component {(rewrite as Component).name}");
 						}
 					}
 					else // Some data structure, not extending Component
@@ -1149,7 +1206,7 @@ namespace CustomModules
 								}
 								catch
 								{
-									NuterraMod.logger.Warn($" Failed to match constructor for {originalType}");
+									NuterraMod.logger.Warn($"🚨 Failed to match constructor for {originalType}");
 								}
 							}
 						}
@@ -1159,7 +1216,7 @@ namespace CustomModules
 						if (newObj != null)
 							rewrite = DeserializeJSONObject(newObj, originalType, jObject);
 						else
-							NuterraMod.logger.Error($" Failed to create instance of {originalType}");
+							NuterraMod.logger.Error($"⛔ Failed to create instance of {originalType}");
 					}
 				}
 				else // !instantiate
@@ -1168,7 +1225,8 @@ namespace CustomModules
 				}
 			}
 
-			return rewrite;
+            NuterraMod.logger.DecreasePrefix(1);
+            return rewrite;
 		}
 
 		// -----------------------------------------------------------------------------------
