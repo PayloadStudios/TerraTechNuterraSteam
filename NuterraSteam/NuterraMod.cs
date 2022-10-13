@@ -120,7 +120,7 @@ namespace CustomModules
                 {
                     foreach (FileInfo file in info.GetFiles())
                     {
-                        if (file.Extension == ".log")
+                        if (file.Exists && file.Extension == ".log")
                         {
                             file.Delete();
                         }
