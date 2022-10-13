@@ -118,9 +118,9 @@ namespace CustomModules
                 DirectoryInfo info = new DirectoryInfo(NuterraLogsDir);
                 if (info.Exists)
                 {
-                    foreach (FileInfo file in info.GetFiles())
+                    foreach (FileInfo file in info.GetFiles("*.log"))
                     {
-                        if (file.Exists && file.Extension == ".log")
+                        if (file.Exists)
                         {
                             file.Delete();
                         }
