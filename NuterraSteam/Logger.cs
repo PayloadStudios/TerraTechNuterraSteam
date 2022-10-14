@@ -138,12 +138,15 @@ namespace CustomModules.Logging
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error settingup loger");
+                Console.WriteLine($"Error setting up loger");
                 Console.WriteLine(ex.ToString());
             }
+            this.Debug("Logger initialized");
         }
 
-        public void Setup() { }
+        public void Setup() {
+            this.Trace("Setup Hook called");
+        }
 
         private void Log(byte level, string message)
         {
