@@ -642,7 +642,7 @@ namespace CustomModules
 					}
                     
                     // Disable Log Flush here to stop a crash bug on Linux (Unhandled NULL)
-					// NuterraMod.logger.Flush();
+                    // NuterraMod.logger.Flush();
                     
                     NuterraMod.logger.ResetPrefix();
                     return blockSuccess;
