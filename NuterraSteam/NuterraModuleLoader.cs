@@ -101,7 +101,8 @@ namespace CustomModules
 					{
 						NuterraMod.logger.Error($"{def.m_BlockDisplayName} | Could not find mod that this unoffical block is part of");
 						NuterraMod.logger.Error("🛑 Block creation FAILED");
-						NuterraMod.logger.Flush();
+                        // Disable Log Flush here to stop a crash bug on Linux (Unhandled NULL)
+                        // NuterraMod.logger.Flush();
                         NuterraMod.logger.ResetPrefix();
                         return false;
 					}
@@ -648,7 +649,8 @@ namespace CustomModules
                     return blockSuccess;
 				}
 				NuterraMod.logger.Error("🛑 Block creation FAILED");
-				NuterraMod.logger.Flush();
+                // Disable Log Flush here to stop a crash bug on Linux (Unhandled NULL)
+                // NuterraMod.logger.Flush();
                 NuterraMod.logger.ResetPrefix();
                 return false;
 			}
@@ -656,8 +658,9 @@ namespace CustomModules
 			{
 				NuterraMod.logger.Error("🛑 Block creation FAILED");
                 NuterraMod.logger.Error(e);
-                NuterraMod.logger.Flush();
-				NuterraMod.logger.ResetPrefix();
+                // Disable Log Flush here to stop a crash bug on Linux (Unhandled NULL)
+                // NuterraMod.logger.Flush();
+                NuterraMod.logger.ResetPrefix();
 				return false;
 			}
 		}
