@@ -640,7 +640,10 @@ namespace CustomModules
 					{
 						NuterraMod.logger.Info("🏁 Block creation DONE");
 					}
-					NuterraMod.logger.Flush();
+                    
+                    // Disable Log Flush here to stop a crash bug on Linux (Unhandled NULL)
+					// NuterraMod.logger.Flush();
+                    
                     NuterraMod.logger.ResetPrefix();
                     return blockSuccess;
 				}
