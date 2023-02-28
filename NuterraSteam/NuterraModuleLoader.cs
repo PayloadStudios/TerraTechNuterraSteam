@@ -6,7 +6,8 @@ using System.Reflection;
 using UnityEngine;
 using CustomModules.Logging;
 using CustomModules.LegacyModule;
-using static LocalisationEnums;
+using Steamworks;
+
 
 namespace CustomModules
 {
@@ -449,7 +450,7 @@ namespace CustomModules
 					catch (Exception e)
 					{
 						blockSuccess = false;
-						NuterraMod.logger.Error("❌ Block creation FAILED");
+						NuterraMod.logger.Error("❌ Block deserialization FAILED");
 						NuterraMod.logger.Error(e);
 					}
 
@@ -710,8 +711,10 @@ namespace CustomModules
 
 			if (hasAnyOverrides)
 			{
-				if (sMaterialCache.TryGetValue(compoundMaterialName, out Material existingMat))
+				if (sMaterialCache.TryGetValue(compoundMaterialName, out Material existingMat) && existingMat != null)
+				{
 					mat = existingMat;
+				}
 				else
 				{
 					// Default to missing texture, then see if we have a base texture reference
@@ -720,18 +723,19 @@ namespace CustomModules
 					{
 						string matName = materialName.Replace("Venture_", "VEN_").Replace("GeoCorp_", "GC_").Replace("Hawkeye_", "HE_");
 						Material refMaterial = TTReferences.FindMaterial(matName);
-						if (refMaterial != null) {
+						if (refMaterial != null)
+						{
 							mat = refMaterial;
 						}
 						else
-                        {
+						{
 							// Material name is bad
 							if (!hasAlbedo)
-                            {
+							{
 								hasAlbedo = true;
 								albedoName = materialName;
-                            }
-                        }
+							}
+						}
 					}
 
 					Texture2D albedo = hasAlbedo ? TTReferences.Find<Texture2D>(albedoName, mod) : null;
@@ -740,7 +744,7 @@ namespace CustomModules
 					mat = Util.CreateMaterial(mat, true, albedo, gloss, emissive);
 
 					// Cache our newly created material in case it comes up again
-					sMaterialCache.Add(compoundMaterialName, mat);
+					sMaterialCache[compoundMaterialName] = mat;
 				}
 			}
 			else
@@ -832,9 +836,11 @@ namespace CustomModules
 						if (renderer is ParticleSystemRenderer psrenderer)
 							psrenderer.trailMaterial = mat;
 
-						if(forceEmissive)
-							MaterialSwapper.SetMaterialPropertiesOnRenderer(renderer, ManTechMaterialSwap.MaterialColour.Normal, 1f, 0);
-					}
+						if (forceEmissive)
+						{
+							MaterialSwapper.SetMaterialPropertiesOnRenderer(ManTechMaterialSwap.MaterialColour.Normal, 1.0f, 0, default(Color), default(Color), renderer);
+                        }
+                    }
 				}
 
 				// If we provided a collider mesh, do a full swap
