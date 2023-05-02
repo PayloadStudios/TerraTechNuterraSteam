@@ -12,6 +12,7 @@ namespace CustomModules
 		public static Material CreateMaterial(Material reference, bool copy, Texture2D albedo, Texture2D gloss, Texture2D emissive)
 		{
 			// Material - Used in the next step
+			NuterraMod.logger.Debug("Creating new material");
 			Material material = reference;
 
 			bool hasMaterial = reference != null;

@@ -52,7 +52,7 @@ namespace CustomModules.LegacyModule
             SetEmissionColor(Color.black);
         }
 
-        void ChangeTimeEmission(bool _)
+        void ChangeTimeEmission(bool isBecomingNight)
         {
             emissionTimeDelay = UnityEngine.Random.value * 2f + 1f;
         }
@@ -96,7 +96,7 @@ namespace CustomModules.LegacyModule
             switch (BlockEmissionMode)
             {
                 case EmissionMode.ActiveAtNight:
-                    ManTimeOfDay.inst.DayEndEvent.Subscribe(ChangeTimeEmission);
+                    Singleton.Manager<ManTimeOfDay>.inst.DayNightChangedEvent.Subscribe(ChangeTimeEmission);
                     return;
 
                 case EmissionMode.ActiveWhenAnchored:
