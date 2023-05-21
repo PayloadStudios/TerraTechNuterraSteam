@@ -47,10 +47,13 @@ namespace CustomModules
 			return null;
 		}
 
-		// TTQMM Ref: GameObjectJSON.ApplyValues(object instance, Type instanceType, JObject json, string Spacing)
-		// TTQMM Ref: GameObjectJSON.ApplyValue(object instance, Type instanceType, JProperty jsonProperty, string Spacing)
-		// I've embedded these two functions
-		public static object DeserializeJSONObject(object target, Type targetType, JObject jObject)
+		private static readonly int numRadarScanTypes = typeof(ModuleRadar.RadarScanType).GetEnumValues().Length;
+		private static int radarScanTypeIndex = EnumValuesIterator<ModuleRadar.RadarScanType>.IndexOfFlag(ModuleRadar.RadarScanType.Techs);
+
+        // TTQMM Ref: GameObjectJSON.ApplyValues(object instance, Type instanceType, JObject json, string Spacing)
+        // TTQMM Ref: GameObjectJSON.ApplyValue(object instance, Type instanceType, JProperty jsonProperty, string Spacing)
+        // I've embedded these two functions
+        public static object DeserializeJSONObject(object target, Type targetType, JObject jObject)
 		{
 			NuterraMod.logger.Trace($"🖨️ DeserializeJSONObject START");
 			NuterraMod.logger.IncreasePrefix(1);
@@ -76,11 +79,36 @@ namespace CustomModules
 						name = split[1];
 					}
 
+					JToken correctedToken = jProperty.Value;
+
 					MemberInfo memberInfo = GetMemberWithName(targetType, name);
 					if (memberInfo == null)
 					{
-						NuterraMod.logger.Error($"🚨 Property '{name}' does not exist in type '{targetType}'");
-						continue;
+						// legacy radar handling
+						if (targetType == typeof(ModuleRadar) && (name.Equals("m_Range") || name.Equals("Range")))
+						{
+							NuterraMod.logger.Warn($"Legacy radar handling");
+							float range;
+							try
+							{
+								range = jProperty.Value.ToObject<float>();
+							}
+							catch (Exception e)
+                            {
+                                NuterraMod.logger.Error($"🚨 {jProperty.Value} is invalid radar range. setting to 100");
+                                NuterraMod.logger.Error(e);
+								range = 300.0f;
+                            }
+							memberInfo = typeof(ModuleRadar).GetField("m_Ranges", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+							float[] ranges = new float[numRadarScanTypes];
+							ranges[radarScanTypeIndex] = range;
+							correctedToken = new JArray(ranges);
+						}
+						else
+						{
+							NuterraMod.logger.Error($"🚨 Property '{name}' does not exist in type '{targetType}'");
+							continue;
+						}
 					}
 					Type memberType = null;
 					if (memberInfo.MemberType == MemberTypes.Field && memberInfo is FieldInfo fieldInfo)
@@ -100,7 +128,7 @@ namespace CustomModules
 						propertyInfo = null;
 					}
 
-					if (jProperty.Value != null)
+					if (correctedToken != null)
                     {
 						bool pass = false;
 						switch (memberInfo.MemberType)
@@ -176,7 +204,7 @@ namespace CustomModules
 					NuterraMod.logger.Debug($"🔎 Property is of type {memberType.FullName.ToString()}, iterable: {isIterable}, dictionary: {isDictionary}");
 
 					// Switch on the type of JSON we are provided with
-					switch (jProperty.Value.Type)
+					switch (correctedToken.Type)
 					{
 						case JTokenType.Object:
 						{
@@ -190,14 +218,14 @@ namespace CustomModules
                                 {
 									NuterraMod.logger.Debug($"🖨️ Attempting to deserialize object into field {name}");
                                 }
-								JObject jChild = jProperty.Value as JObject;
+								JObject jChild = correctedToken as JObject;
 								SetJSONObject(jChild, target, wipe, instantiate, fieldInfo, propertyInfo, propertyInfo == null);
 							}
 							else if (memberType.IsValueType)
 							{
 								// is a struct
 								NuterraMod.logger.Debug($"🔎 Detected {memberType} is struct");
-								JObject jChild = jProperty.Value as JObject;
+								JObject jChild = correctedToken as JObject;
 								SetJSONObject(jChild, target, wipe, instantiate, fieldInfo, propertyInfo, propertyInfo == null);
 							}
 							else
@@ -212,7 +240,7 @@ namespace CustomModules
 							if (isIterable)
 							{
 								NuterraMod.logger.Debug($"🖨️ Attempting to deserialize array into field {name}");
-								JArray jArray = jProperty.Value as JArray;
+								JArray jArray = correctedToken as JArray;
 								object sourceArray = null;
 								if (!wipe)
 									sourceArray = memberInfo.GetValueOfField(target);
@@ -242,7 +270,7 @@ namespace CustomModules
 							// The leaf node, parse the value into place
 							if (!isIterable && !isDictionary)
 							{
-								if (jProperty.Value is JValue jValue)
+								if (correctedToken is JValue jValue)
 								{
 									NuterraMod.logger.Debug($"🖨️ Attempting to deserialize value {jValue.Value?.ToString()} into field {name}");
                                     if (DeserializeValueIntoTarget(target, memberInfo, jValue))
@@ -252,10 +280,10 @@ namespace CustomModules
                                 }
 								else
 								{
-									NuterraMod.logger.Error($"❌ Attempting to deserialize NON-VALUE {jProperty.Value?.ToString()} into field {name}");
+									NuterraMod.logger.Error($"❌ Attempting to deserialize NON-VALUE {correctedToken?.ToString()} into field {name}");
 								}
 							}
-							else if (jProperty.Value.Type == JTokenType.Null || (jProperty.Value is JValue jValue && jValue.Value == null))
+							else if (correctedToken.Type == JTokenType.Null || (correctedToken is JValue jValue && jValue.Value == null))
 							{
 								NuterraMod.logger.Debug($"🖨️ Attempting to deserialize null into field {name}");
 								if (DeserializeValueIntoTarget(target, memberInfo, null))
@@ -1179,8 +1207,15 @@ namespace CustomModules
 					{
 						object newObj = null;
 						try
-						{
-							newObj = Activator.CreateInstance(originalType);
+                        {
+                            if (typeof(ScriptableObject).IsAssignableFrom(originalType))
+                            {
+                                newObj = ScriptableObject.CreateInstance(originalType);
+                            }
+                            else
+                            {
+                                newObj = Activator.CreateInstance(originalType);
+                            }
 						}
 						catch
 						{

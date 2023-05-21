@@ -303,6 +303,7 @@ namespace CustomModules
 
 					// Some basic block stats
 					damageable.DamageableType = CustomParser.LenientTryParseEnum<ManDamage.DamageableType>(jData, "DamageableType", damageable.DamageableType);
+					def.m_DamageableType = damageable.DamageableType;
 					if(CustomParser.TryGetFloatMultipleKeys(jData, out float fragility, moduleDamage.m_DamageDetachFragility, "DetachFragility", "Fragility"))
 					{
 						moduleDamage.m_DamageDetachFragility = fragility;
@@ -787,11 +788,21 @@ namespace CustomModules
 			if (RemoveExistingMesh) {
 				if (targetTransform.gameObject.GetComponent<MeshFilter>() is MeshFilter mf)
 				{
-					GameObject.DestroyImmediate(mf);
+					if (targetTransform != block.transform)
+					{
+						GameObject.DestroyImmediate(mf);
+					}
 				}
 				if (targetTransform.gameObject.GetComponent<MeshRenderer>() is MeshRenderer mr)
-				{
-					GameObject.Destroy(mr);
+                {
+					if (targetTransform == block.transform)
+					{
+						mr.enabled = false;
+					}
+					else
+					{
+						GameObject.Destroy(mr);
+					}
 				}
 			}
 
