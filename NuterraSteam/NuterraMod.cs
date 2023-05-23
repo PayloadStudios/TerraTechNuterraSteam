@@ -210,14 +210,7 @@ namespace CustomModules
                     }
                     if (add)
                     {
-                        if (legacyToSessionIds.ContainsKey(legacyID))
-                        {
-                            legacyToSessionIds.Add(legacyID, sessionID);
-                        }
-                        else
-                        {
-                            legacyToSessionIds[legacyID] = sessionID;
-                        }
+                        legacyToSessionIds[legacyID] = sessionID;
                     }
                 }
             }
