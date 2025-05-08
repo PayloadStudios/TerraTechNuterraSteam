@@ -43,12 +43,12 @@ namespace CustomModules.LegacyModule
 
         public void SetEmissionOn()
         {
-            block.SwapMaterialTime(true);
+            block.SetNightTimeVisualsActive(true);
             SetEmissionColor(Color.white);
         }
         public void SetEmissionOff()
         {
-            block.SwapMaterialTime(false);
+            block.SetNightTimeVisualsActive(false);
             SetEmissionColor(Color.black);
         }
 

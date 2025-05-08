@@ -6,7 +6,6 @@ using System.Reflection;
 using UnityEngine;
 using CustomModules.Logging;
 using CustomModules.LegacyModule;
-using Steamworks;
 
 
 namespace CustomModules
@@ -849,7 +848,7 @@ namespace CustomModules
 
 						if (forceEmissive)
 						{
-							MaterialSwapper.SetMaterialPropertiesOnRenderer(ManTechMaterialSwap.MaterialColour.Normal, 1.0f, 0, default(Color), default(Color), renderer);
+							MaterialSwapper.SetMaterialPropertiesOnRenderer(ManTechMaterialSwap.MaterialColour.Normal, 1.0f, 0, MaterialSwapper.VariableColorOverrides.empty, renderer);
                         }
                     }
 				}
